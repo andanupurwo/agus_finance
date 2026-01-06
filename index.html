@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta id="theme-color" name="theme-color" content="#f8fafc" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Agus Finance" />
+    <title>Agus Finance - Budget Planner</title>
+    <script>
+      // System theme detection and status bar color sync
+      (function initTheme() {
+        const updateTheme = () => {
+          const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          const themeColorMeta = document.getElementById('theme-color');
+          const htmlElement = document.documentElement;
+          
+          if (isDark) {
+            // Dark mode: slate-950 (#020617)
+            themeColorMeta.setAttribute('content', '#020617');
+            htmlElement.classList.add('dark');
+          } else {
+            // Light mode: slate-50 (#f8fafc)
+            themeColorMeta.setAttribute('content', '#f8fafc');
+            htmlElement.classList.remove('dark');
+          }
+        };
+        
+        // Set initial theme
+        updateTheme();
+        
+        // Listen for system theme changes (real-time)
+        const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+        mediaQuery.addEventListener('change', updateTheme);
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
