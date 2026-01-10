@@ -146,15 +146,16 @@ export const useTransactions = (showToast, showConfirm) => {
       if (!sourceData) throw new Error('Sumber tidak ditemukan');
       
       // Validasi saldo sumber cukup
-      let sourceAmount = parseRupiah(sourceData.amount || '0');
-      
-      // KHUSUS untuk budget source, jika tidak punya amount, hitung dari limit - used
-      if (!isSourceWallet && !sourceData.amount) {
+      let sourceAvailable;
+      if (isSourceWallet) {
+        sourceAvailable = parseRupiah(sourceData.amount || '0');
+      } else {
+        // Budget: selalu hitung dari limit - used
         const used = calculateBudgetUsed(fromId, transactions || []);
-        sourceAmount = calculateBudgetRemaining(sourceData, used);
+        sourceAvailable = calculateBudgetRemaining(sourceData, used);
       }
-      
-      if (sourceAmount < amountVal) { 
+
+      if (sourceAvailable < amountVal) { 
         setLoading(false); 
         showToast?.("Saldo sumber tidak cukup!", "error");
         return;
@@ -169,30 +170,26 @@ export const useTransactions = (showToast, showConfirm) => {
       if (!destData) throw new Error('Tujuan tidak ditemukan');
 
       // UPDATE SUMBER
-      await updateDoc(doc(db, isSourceWallet ? 'wallets' : 'budgets', fromId), { 
-        amount: formatRupiah(sourceAmount - amountVal) 
-      });
+      if (isSourceWallet) {
+        const newAmount = parseRupiah(sourceData.amount || '0') - amountVal;
+        await updateDoc(doc(db, 'wallets', fromId), { amount: formatRupiah(Math.max(0, newAmount)) });
+      } else {
+        // Budget: kurangi LIMIT (realokasi keluar)
+        const currentSourceLimit = parseRupiah(sourceData.limit || '0');
+        await updateDoc(doc(db, 'budgets', fromId), { limit: formatRupiah(Math.max(0, currentSourceLimit - amountVal)) });
+      }
       
       // UPDATE TUJUAN
-      const destAmount = parseRupiah(destData.amount || '0');
-      let updateDestData = { amount: formatRupiah(destAmount + amountVal) };
-      
-      // PENTING: Jika tujuan adalah BUDGET, NAIKKAN LIMIT (alokasi)
-      // BUKAN amount! Limit adalah yang naik saat top up
-      if (!isDestWallet) {
+      if (isDestWallet) {
+        const destAmount = parseRupiah(destData.amount || '0');
+        await updateDoc(doc(db, 'wallets', toId), { amount: formatRupiah(destAmount + amountVal) });
+      } else {
+        // Budget: naikkan LIMIT (top up)
         const currentDestLimit = parseRupiah(destData.limit || '0');
-        updateDestData.limit = formatRupiah(currentDestLimit + amountVal);
+        await updateDoc(doc(db, 'budgets', toId), { limit: formatRupiah(currentDestLimit + amountVal) });
       }
       
-      await updateDoc(doc(db, isDestWallet ? 'wallets' : 'budgets', toId), updateDestData);
-      
-      // Jika sumber adalah BUDGET dan tujuan juga BUDGET: kurangi limit sumber
-      if (!isSourceWallet && !isDestWallet) {
-        const currentSourceLimit = parseRupiah(sourceData.limit || '0');
-        await updateDoc(doc(db, "budgets", fromId), { 
-          limit: formatRupiah(Math.max(0, currentSourceLimit - amountVal)) 
-        });
-      }
+      // Catatan: pengurangan limit sumber untuk budget telah dilakukan di atas
       
       // Catat transaksi transfer
       await addDoc(collection(db, "transactions"), {

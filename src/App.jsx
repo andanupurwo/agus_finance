@@ -173,46 +173,16 @@ export default function App() {
     return () => { unsubW(); unsubB(); unsubT(); };
   }, []);
 
-  // 2. AUTO ROLLOVER CHECK
+  // 2. ROLLOVER REMINDER (non-auto)
   useEffect(() => {
     if (wallets.length === 0 || budgets.length === 0) return;
-    
-    const checkAndRollover = async () => {
-      const lastRollover = localStorage.getItem('lastRolloverDate');
-      const today = new Date();
-      const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    const today = new Date();
+    const isFirstOfMonth = today.getDate() === 1;
+    if (!isFirstOfMonth) return;
 
-      // Hanya lakukan rollover jika ada transaksi di bulan sebelum bulan ini
-      const hasPreviousMonthTx = transactions.some((t) => {
-        const dt = new Date(t.date);
-        if (Number.isNaN(dt.getTime())) return false;
-        return (
-          dt.getFullYear() < today.getFullYear() ||
-          (dt.getFullYear() === today.getFullYear() && dt.getMonth() < today.getMonth())
-        );
-      });
-
-      if (!hasPreviousMonthTx) return;
-      
-      // Jika belum pernah rollover atau bulan berbeda
-      if (!lastRollover || !lastRollover.startsWith(currentMonth)) {
-        // Cek apakah ada sisa budget
-        const totalSisa = budgets.reduce((acc, b) => acc + parseRupiah(b.amount), 0);
-        
-        if (totalSisa > 0) {
-          // Auto rollover tanpa konfirmasi
-          setLoading(true);
-          await monthlyRollover(wallets, budgets, transactions, user, setLoading, true);
-          showToast(`🔄 Auto Rollover: Rp ${formatRupiah(totalSisa)} dari budget bulan lalu dikembalikan ke wallet`, 'info');
-        }
-        
-        // Update last rollover date
-        localStorage.setItem('lastRolloverDate', today.toISOString());
-      }
-    };
-    
-    checkAndRollover();
-  }, [wallets, budgets, transactions]);
+    // Tampilkan reminder ringan untuk melakukan rollover manual di Settings
+    showToast('🔔 Awal bulan: lakukan Rollover di Settings untuk mengembalikan sisa budget dan set ulang limit.', 'info');
+  }, [wallets, budgets]);
 
   // Hitung Total Uang = Total Wallet + Total Budget yang Tersedia
   const walletTotal = wallets.reduce((acc, w) => acc + parseRupiah(w.amount), 0);

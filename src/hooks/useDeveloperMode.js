@@ -1057,56 +1057,71 @@ export const useDeveloperMode = (showToast, showConfirm) => {
   }
 
   const monthlyRollover = async (wallets, budgets, transactions, user, setLoading, skipConfirm = false) => {
+    // Explicit rollover: kembalikan sisa budget bulan lalu ke wallet utama, lalu set limit budget ke 0
     if (!skipConfirm) {
-      const confirmed = await showConfirm?.("🔄 Monthly Rollover: Reset semua budget ke 0 dan kembalikan sisa ke Wallet Utama?");
+      const confirmed = await showConfirm?.("🔄 Monthly Rollover: Kembalikan sisa budget bulan lalu ke Wallet Utama dan reset limit budget menjadi 0?");
       if(!confirmed) return;
     }
-    
+
+    // Tentukan bulan kemarin
+    const today = new Date();
+    const prevMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    const prevStart = new Date(prevMonth.getFullYear(), prevMonth.getMonth(), 1);
+    const prevEnd = new Date(prevMonth.getFullYear(), prevMonth.getMonth() + 1, 0, 23, 59, 59, 999);
+
     setLoading(true);
     try {
       const batch = writeBatch(db);
       let totalSisa = 0;
-      
-      // Hitung total sisa dari semua budgets
-      budgets.forEach(b => {
-        totalSisa += parseRupiah(b.amount);
+
+      // Hitung sisa tiap budget dari limit - total expense bulan kemarin
+      const budgetSisaList = budgets.map(b => {
+        const used = transactions
+          .filter(t => t.type === 'expense' && t.targetId === b.id)
+          .filter(t => {
+            const dt = new Date(t.date);
+            return dt >= prevStart && dt <= prevEnd;
+          })
+          .reduce((sum, t) => sum + parseRupiah(t.amount), 0);
+        const limitVal = parseRupiah(b.limit || '0');
+        const remaining = Math.max(0, limitVal - used);
+        return { id: b.id, name: b.name, remaining };
       });
-      
-      // Reset semua budgets ke 0
+
+      totalSisa = budgetSisaList.reduce((acc, x) => acc + x.remaining, 0);
+
+      // Reset semua budgets: set limit ke 0 (untuk alokasi bulan baru)
       budgets.forEach(b => {
         batch.update(doc(db, "budgets", b.id), { 
-          amount: "0",
           limit: "0"
         });
       });
-      
-      // Cari Wallet Utama (wallet pertama atau yang paling besar saldonya)
+
+      // Cari Wallet Utama (saldo terbesar)
       const mainWallet = wallets.length > 0 ? 
         wallets.reduce((prev, current) => 
           parseRupiah(current.amount) > parseRupiah(prev.amount) ? current : prev
         ) : null;
-      
+
       if (mainWallet && totalSisa > 0) {
         const newWalletBalance = parseRupiah(mainWallet.amount) + totalSisa;
-        batch.update(doc(db, "wallets", mainWallet.id), { 
-          amount: formatRupiah(newWalletBalance)
-        });
-        
-        // Catat transaksi rollover
+        batch.update(doc(db, "wallets", mainWallet.id), { amount: formatRupiah(newWalletBalance) });
+
+        // Catat transaksi rollover (ringkas, satu entry)
         const transRef = doc(collection(db, "transactions"));
         batch.set(transRef, {
           title: "Monthly Rollover - Sisa Budget Bulan Lalu",
           amount: formatRupiah(totalSisa),
           type: "income",
-          user: "System",
+          user: user || "System",
           time: new Date().toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'}),
           target: mainWallet.name,
           createdAt: Date.now()
         });
       }
-      
+
       await batch.commit();
-      showToast?.(`✅ Rollover berhasil! Rp ${formatRupiah(totalSisa)} dikembalikan ke ${mainWallet?.name || 'Wallet'}`, "success");
+      showToast?.(`✅ Rollover berhasil! Rp ${formatRupiah(totalSisa)} dikembalikan ke ${mainWallet?.name || 'Wallet'}. Silakan alokasikan ulang limit bulan ini.`, "success");
     } catch (e) { 
       showToast?.("Error: " + e.message, "error");
     }
