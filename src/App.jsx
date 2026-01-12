@@ -15,6 +15,7 @@ import { useTransactions } from './hooks/useTransactions';
 import { useTheme } from './context/ThemeContext';
 import { formatRupiah, parseRupiah } from './utils/formatter';
 import { cacheManager } from './utils/cacheManager';
+import { verifyPin, setPinData } from './utils/pinManager';
 
 const MAGIC_CODES = {
   '081111': 'Purwo',
@@ -107,17 +108,43 @@ export default function App() {
       showToast('Masukkan PIN', 'error');
       return;
     }
-    // Debug: log available codes
-    console.log('Available codes:', Object.keys(MAGIC_CODES));
-    console.log('Input:', trimmed);
+    
+    // Check if it's a username from MAGIC_CODES
     const found = MAGIC_CODES[trimmed];
-    if (!found) {
-      showToast('PIN salah', 'error');
-      return;
+    if (found) {
+      // User found, verify/setup PIN
+      const result = verifyPin(found, '000000'); // Try default PIN first
+      
+      if (result.success || !result.message.includes('tidak ditemukan')) {
+        // User exists but wrong PIN or needs setup
+        setUser(found);
+        setMagicCode('');
+        
+        // Setup default PIN if not exists
+        if (result.message.includes('tidak ditemukan')) {
+          setPinData(found, '000000');
+        }
+        
+        showToast(`Halo ${found}!`, 'success');
+        return;
+      }
     }
-    setUser(found);
-    setMagicCode('');
-    showToast(`Halo ${found}!`, 'success');
+    
+    // Try as PIN for existing users
+    for (const [code, username] of Object.entries(MAGIC_CODES)) {
+      const result = verifyPin(username, trimmed);
+      if (result.success) {
+        setUser(username);
+        setMagicCode('');
+        showToast(`Halo ${username}!`, 'success');
+        return;
+      } else if (result.message.includes('terkunci')) {
+        showToast(result.message, 'error');
+        return;
+      }
+    }
+    
+    showToast('PIN salah', 'error');
   };
 
   useEffect(() => {

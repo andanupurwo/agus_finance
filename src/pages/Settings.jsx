@@ -1,11 +1,12 @@
 import React, { useState, useRef } from 'react';
-import { ChevronDown, Info, BookOpen, Upload, BarChart3, Sun, Moon, Monitor, Lock, Trash2 } from 'lucide-react';
+import { ChevronDown, Info, BookOpen, Upload, BarChart3, Sun, Moon, Monitor, Lock, Trash2, Eye, EyeOff } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { BulkImport } from '../components/BulkImport';
 import { cacheManager } from '../utils/cacheManager';
 import { firebaseConfig, environment } from '../firebase';
 import { db } from '../firebase';
 import { collection, getDocs, writeBatch } from 'firebase/firestore';
+import { changePin, validatePinStrength } from '../utils/pinManager';
 
 export const Settings = ({ wallets, budgets, transactions, setLoading, loading, user, showToast, showConfirm, setUser, onForceRefresh }) => {
   const { themeMode, setTheme } = useTheme();
@@ -32,6 +33,10 @@ export const Settings = ({ wallets, budgets, transactions, setLoading, loading, 
   // Change PIN state
   const [changePinForm, setChangePinForm] = useState({ oldPin: '', newPin: '', confirmPin: '' });
   const [showChangePinModal, setShowChangePinModal] = useState(false);
+  const [showPinOld, setShowPinOld] = useState(false);
+  const [showPinNew, setShowPinNew] = useState(false);
+  const [showPinConfirm, setShowPinConfirm] = useState(false);
+  const [pinStrength, setPinStrength] = useState(null);
 
   const toggleSection = (section) => {
     setSections(prev => {
@@ -90,17 +95,20 @@ export const Settings = ({ wallets, budgets, transactions, setLoading, loading, 
       return;
     }
     
-    // Get current PIN from localStorage
-    const storageKey = `pin_${user}`;
-    const currentPin = localStorage.getItem(storageKey) || '000000';
-    
-    if (oldPin !== currentPin) {
-      showToast('PIN lama salah', 'error');
+    // Validate PIN strength
+    const strength = validatePinStrength(newPin);
+    if (!strength.valid) {
+      showToast(strength.message, 'error');
       return;
     }
     
-    // Save new PIN
-    localStorage.setItem(storageKey, newPin);
+    // Change PIN using secure pinManager
+    const result = changePin(user, oldPin, newPin);
+    
+    if (!result.success) {
+      showToast(result.message, 'error');
+      return;
+    }
     
     // Broadcast to other tabs that PIN changed
     localStorage.setItem('PIN_CHANGED_EVENT', JSON.stringify({
@@ -108,11 +116,26 @@ export const Settings = ({ wallets, budgets, transactions, setLoading, loading, 
       timestamp: Date.now()
     }));
     
-    showToast(`✓ PIN berhasil diganti! User lain akan logout otomatis.`, 'success');
+    showToast(`✓ ${result.message}! User lain akan logout otomatis.`, 'success');
     
     // Reset form
     setChangePinForm({ oldPin: '', newPin: '', confirmPin: '' });
+    setPinStrength(null);
     setShowChangePinModal(false);
+    setShowPinOld(false);
+    setShowPinNew(false);
+    setShowPinConfirm(false);
+  };
+
+  // Handle new PIN input with strength validation
+  const handleNewPinChange = (value) => {
+    setChangePinForm({...changePinForm, newPin: value});
+    if (value.length === 6) {
+      const strength = validatePinStrength(value);
+      setPinStrength(strength);
+    } else {
+      setPinStrength(null);
+    }
   };
 
   
@@ -327,41 +350,90 @@ export const Settings = ({ wallets, budgets, transactions, setLoading, loading, 
 
       {/* CHANGE PIN MODAL */}
       {showChangePinModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/40 dark:bg-black/60 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setShowChangePinModal(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/40 dark:bg-black/60 backdrop-blur-md animate-in fade-in duration-300" onClick={() => {
+          setShowChangePinModal(false);
+          setChangePinForm({ oldPin: '', newPin: '', confirmPin: '' });
+          setPinStrength(null);
+          setShowPinOld(false);
+          setShowPinNew(false);
+          setShowPinConfirm(false);
+        }}>
           <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl border border-slate-200 dark:border-slate-800 p-6 animate-in zoom-in-95 transition-colors duration-300 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">🔐 Ganti PIN</h3>
             <p className="text-xs text-slate-600 dark:text-slate-400 mb-4">Masukkan PIN lama dan PIN baru (6 digit angka)</p>
             
             <div className="space-y-3">
-              <input
-                type="password"
-                inputMode="numeric"
-                maxLength={6}
-                value={changePinForm.oldPin}
-                onChange={(e) => setChangePinForm({...changePinForm, oldPin: e.target.value.replace(/\D/g, '')})}
-                placeholder="PIN Lama"
-                className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 p-3 rounded-xl text-center text-lg font-bold tracking-widest text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-600 focus:border-orange-500 dark:focus:border-orange-400 outline-none transition-colors duration-300"
-              />
+              {/* Old PIN Input */}
+              <div className="relative">
+                <input
+                  type={showPinOld ? "text" : "password"}
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={changePinForm.oldPin}
+                  onChange={(e) => setChangePinForm({...changePinForm, oldPin: e.target.value.replace(/\D/g, '')})}
+                  placeholder="PIN Lama"
+                  className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 p-3 pr-10 rounded-xl text-center text-lg font-bold tracking-widest text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-600 focus:border-orange-500 dark:focus:border-orange-400 outline-none transition-colors duration-300"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPinOld(!showPinOld)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                >
+                  {showPinOld ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
               
-              <input
-                type="password"
-                inputMode="numeric"
-                maxLength={6}
-                value={changePinForm.newPin}
-                onChange={(e) => setChangePinForm({...changePinForm, newPin: e.target.value.replace(/\D/g, '')})}
-                placeholder="PIN Baru"
-                className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 p-3 rounded-xl text-center text-lg font-bold tracking-widest text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-600 focus:border-orange-500 dark:focus:border-orange-400 outline-none transition-colors duration-300"
-              />
+              {/* New PIN Input with Strength Indicator */}
+              <div className="relative">
+                <input
+                  type={showPinNew ? "text" : "password"}
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={changePinForm.newPin}
+                  onChange={(e) => handleNewPinChange(e.target.value.replace(/\D/g, ''))}
+                  placeholder="PIN Baru"
+                  className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 p-3 pr-10 rounded-xl text-center text-lg font-bold tracking-widest text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-600 focus:border-orange-500 dark:focus:border-orange-400 outline-none transition-colors duration-300"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPinNew(!showPinNew)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                >
+                  {showPinNew ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
               
-              <input
-                type="password"
-                inputMode="numeric"
-                maxLength={6}
-                value={changePinForm.confirmPin}
-                onChange={(e) => setChangePinForm({...changePinForm, confirmPin: e.target.value.replace(/\D/g, '')})}
-                placeholder="Konfirmasi PIN Baru"
-                className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 p-3 rounded-xl text-center text-lg font-bold tracking-widest text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-600 focus:border-orange-500 dark:focus:border-orange-400 outline-none transition-colors duration-300"
-              />
+              {/* PIN Strength Indicator */}
+              {pinStrength && (
+                <div className={`text-xs p-2 rounded-lg ${
+                  pinStrength.strength === 'strong' ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300' :
+                  pinStrength.strength === 'medium' ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300' :
+                  'bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300'
+                }`}>
+                  {pinStrength.strength === 'strong' ? '✓ ' : pinStrength.strength === 'medium' ? '⚠️ ' : '✗ '}
+                  {pinStrength.message}
+                </div>
+              )}
+              
+              {/* Confirm PIN Input */}
+              <div className="relative">
+                <input
+                  type={showPinConfirm ? "text" : "password"}
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={changePinForm.confirmPin}
+                  onChange={(e) => setChangePinForm({...changePinForm, confirmPin: e.target.value.replace(/\D/g, '')})}
+                  placeholder="Konfirmasi PIN Baru"
+                  className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 p-3 pr-10 rounded-xl text-center text-lg font-bold tracking-widest text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-600 focus:border-orange-500 dark:focus:border-orange-400 outline-none transition-colors duration-300"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPinConfirm(!showPinConfirm)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                >
+                  {showPinConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </div>
 
             <div className="flex gap-2 mt-4">
