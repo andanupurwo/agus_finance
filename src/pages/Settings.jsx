@@ -233,7 +233,7 @@ export const Settings = ({ wallets, budgets, transactions, setLoading, loading, 
         )}
       </div>
 
-      {/* APP INFO SECTION - Moved up for verification */}
+      {/* APP INFO SECTION */}
       <div className="bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden transition-colors duration-300 shadow-sm" ref={sectionRefs.appInfo}>
         <button
           onClick={() => toggleSection('appInfo')}
@@ -246,66 +246,81 @@ export const Settings = ({ wallets, budgets, transactions, setLoading, loading, 
           <ChevronDown size={20} className={`text-slate-600 dark:text-slate-400 transition-transform ${sections.appInfo ? 'rotate-180' : ''}`} />
         </button>
 
-        {sections.about && (
+        {sections.appInfo && (
+          <div className="border-t border-slate-200 dark:border-slate-800 p-5 space-y-3 animate-in fade-in duration-300">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg">
+                <p className="text-xs text-slate-600 dark:text-slate-400">Total Wallets</p>
+                <p className="text-xl font-bold text-slate-900 dark:text-white">{wallets.length}</p>
+              </div>
+              <div className="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg">
+                <p className="text-xs text-slate-600 dark:text-slate-400">Total Budgets</p>
+                <p className="text-xl font-bold text-slate-900 dark:text-white">{budgets.length}</p>
+              </div>
+              <div className="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg">
+                <p className="text-xs text-slate-600 dark:text-slate-400">Total Transactions</p>
+                <p className="text-xl font-bold text-slate-900 dark:text-white">{transactions.length}</p>
+              </div>
+              <div className="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg">
+                <p className="text-xs text-slate-600 dark:text-slate-400">Logged as</p>
+                <p className="text-lg font-bold text-slate-900 dark:text-white">{user || '-'}</p>
+              </div>
+              <div className="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg col-span-2">
+                <p className="text-xs text-slate-600 dark:text-slate-400">Firebase Connection</p>
+                <p className="text-sm font-bold text-slate-900 dark:text-white">Env: {environment}</p>
+                <p className="text-xs text-slate-700 dark:text-slate-300">Project: {firebaseConfig?.projectId || '-'}</p>
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-slate-200 dark:border-slate-800">
+              <p className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase mb-3">Kategori Default</p>
+
+              <div className="space-y-2 text-xs">
+                <div>
+                  <p className="font-semibold text-slate-900 dark:text-white mb-1">👛 Wallets</p>
+                  <div className="text-slate-700 dark:text-slate-300 space-y-0.5">
+                    <div>• Tabungan (Cash, Muamalat, Seabank)</div>
+                    <div>• Emas (Fisik, Pegadaian Digital)</div>
+                    <div>• Saham (Bibit, Stockbit)</div>
+                  </div>
+                </div>
+                <div>
+                  <p className="font-semibold text-slate-900 dark:text-white mb-1 mt-2">📊 Budgets</p>
+                  <div className="text-slate-700 dark:text-slate-300 space-y-0.5">
+                    <div>• Makan, Rumah Tangga, Anak, Transportasi, Lain-lain</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* CHANGE PIN SECTION */}
+      <div className="bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden transition-colors duration-300 shadow-sm" ref={sectionRefs.changPin}>
+        <button
+          onClick={() => toggleSection('changPin')}
+          className="w-full p-5 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-900/80 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <Lock size={20} className="text-orange-600 dark:text-orange-400" />
+            <h3 className="font-bold text-slate-900 dark:text-white">Ganti Kode Sakti</h3>
+          </div>
+          <ChevronDown size={20} className={`text-slate-600 dark:text-slate-400 transition-transform ${sections.changPin ? 'rotate-180' : ''}`} />
+        </button>
+
+        {sections.changPin && (
           <div className="border-t border-slate-200 dark:border-slate-800 p-5 space-y-4 animate-in fade-in duration-300">
-            <div>
-              <h4 className="font-bold text-slate-900 dark:text-white mb-2">💰 Agus Finance</h4>
-              <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
-                Aplikasi manajemen keuangan pribadi yang dirancang untuk memudahkan Anda mengelola wallet, budget, dan transaksi harian dengan cara yang sederhana namun powerful.
-              </p>
-            </div>
-
-            <div>
-              <h4 className="font-bold text-slate-900 dark:text-white mb-3">✨ Fitur Utama</h4>
-              <ul className="space-y-2">
-                <li className="flex gap-2 text-sm text-slate-700 dark:text-slate-300">
-                  <span className="text-emerald-600 dark:text-emerald-400">✓</span>
-                  <span><strong>Manajemen Wallet</strong> - Kelola berbagai sumber penyimpanan dana</span>
-                </li>
-                <li className="flex gap-2 text-sm text-slate-700 dark:text-slate-300">
-                  <span className="text-emerald-600 dark:text-emerald-400">✓</span>
-                  <span><strong>Anggaran Budget</strong> - Tetapkan dan pantau batas pengeluaran per kategori</span>
-                </li>
-                <li className="flex gap-2 text-sm text-slate-700 dark:text-slate-300">
-                  <span className="text-emerald-600 dark:text-emerald-400">✓</span>
-                  <span><strong>Pencatatan Transaksi</strong> - Catat pemasukan dan pengeluaran real-time</span>
-                </li>
-                <li className="flex gap-2 text-sm text-slate-700 dark:text-slate-300">
-                  <span className="text-emerald-600 dark:text-emerald-400">✓</span>
-                  <span><strong>Analisis Bulanan</strong> - Lihat ringkasan dan tren keuangan Anda</span>
-                </li>
-                <li className="flex gap-2 text-sm text-slate-700 dark:text-slate-300">
-                  <span className="text-emerald-600 dark:text-emerald-400">✓</span>
-                  <span><strong>Tema Gelap/Terang</strong> - Mode visual yang mengikuti preferensi sistem Anda</span>
-                </li>
-              </ul>
-            </div>
-
-            <div className="grid grid-cols-3 gap-3 pt-2 border-t border-slate-200 dark:border-slate-800">
-              <div className="text-center">
-                <p className="text-xs text-slate-600 dark:text-slate-400">Versi</p>
-                <p className="font-bold text-slate-900 dark:text-white text-sm">1.0.0</p>
-              </div>
-              <div className="text-center">
-                <p className="text-xs text-slate-600 dark:text-slate-400">Dibangun dengan</p>
-                <p className="font-bold text-slate-900 dark:text-white text-sm">React</p>
-              </div>
-              <div className="text-center">
-                <p className="text-xs text-slate-600 dark:text-slate-400">Data</p>
-                <p className="font-bold text-slate-900 dark:text-white text-sm">Firebase</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 space-y-3 pt-2 border-t border-slate-200 dark:border-slate-800">
-              <div className='text-center'>
-                <p className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase mb-1">👨‍💻 Created By</p>
-                <p className="text-sm text-slate-900 dark:text-white font-semibold">Agus Astroboy</p>
-              </div>
-              <div className='text-center'>
-                <p className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase mb-1">🙏 Thanks to Support</p>
-                <p className="text-sm text-slate-900 dark:text-white font-semibold">_dunckles & Meansrev</p>
-              </div>
-            </div>
+            <p className="text-xs text-slate-600 dark:text-slate-400">
+              User lain yang sedang login akan otomatis logout ketika Anda mengubah kode sakti.
+            </p>
+            
+            <button
+              onClick={() => setShowChangePinModal(true)}
+              className="w-full py-3 rounded-xl bg-orange-600 hover:bg-orange-700 dark:hover:bg-orange-500 text-white font-bold transition-all"
+            >
+              Ubah Kode Sakti
+            </button>
           </div>
         )}
       </div>
@@ -409,160 +424,6 @@ export const Settings = ({ wallets, budgets, transactions, setLoading, loading, 
               showToast={showToast}
               showConfirm={showConfirm}
             />
-          </div>
-        )}
-      </div>
-
-      
-
-      {/* CHANGE PIN SECTION */}
-      <div className="bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden transition-colors duration-300 shadow-sm" ref={sectionRefs.changPin}>
-        <button
-          onClick={() => toggleSection('changPin')}
-          className="w-full p-5 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-900/80 transition-colors"
-        >
-          <div className="flex items-center gap-3">
-            <Lock size={20} className="text-orange-600 dark:text-orange-400" />
-            <h3 className="font-bold text-slate-900 dark:text-white">Ganti Kode Sakti</h3>
-          </div>
-          <ChevronDown size={20} className={`text-slate-600 dark:text-slate-400 transition-transform ${sections.changPin ? 'rotate-180' : ''}`} />
-        </button>
-
-        {sections.changPin && (
-          <div className="border-t border-slate-200 dark:border-slate-800 p-5 space-y-4 animate-in fade-in duration-300">
-            <p className="text-xs text-slate-600 dark:text-slate-400">
-              User lain yang sedang login akan otomatis logout ketika Anda mengubah kode sakti.
-            </p>
-            
-            <button
-              onClick={() => setShowChangePinModal(true)}
-              className="w-full py-3 rounded-xl bg-orange-600 hover:bg-orange-700 dark:hover:bg-orange-500 text-white font-bold transition-all"
-            >
-              Ubah Kode Sakti
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* CHANGE PIN MODAL */}
-      {showChangePinModal && (
-        <div className="fixed inset-0 z-70 flex items-center justify-center bg-white/40 dark:bg-black/60 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setShowChangePinModal(false)}>
-          <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl border border-slate-200 dark:border-slate-800 p-6 animate-in zoom-in-95 transition-colors duration-300 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">🔐 Ganti Kode Sakti</h3>
-            <p className="text-xs text-slate-600 dark:text-slate-400 mb-4">Masukkan PIN lama dan PIN baru (6 digit)</p>
-            
-            <div className="space-y-3">
-              <input
-                type="password"
-                inputMode="numeric"
-                maxLength={6}
-                value={changePinForm.oldPin}
-                onChange={(e) => setChangePinForm({...changePinForm, oldPin: e.target.value.replace(/\D/g, '')})}
-                placeholder="PIN Lama"
-                className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 p-3 rounded-xl text-center text-lg font-bold tracking-widest text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-600 focus:border-orange-500 dark:focus:border-orange-400 outline-none transition-colors duration-300"
-              />
-              
-              <input
-                type="password"
-                inputMode="numeric"
-                maxLength={6}
-                value={changePinForm.newPin}
-                onChange={(e) => setChangePinForm({...changePinForm, newPin: e.target.value.replace(/\D/g, '')})}
-                placeholder="PIN Baru"
-                className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 p-3 rounded-xl text-center text-lg font-bold tracking-widest text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-600 focus:border-orange-500 dark:focus:border-orange-400 outline-none transition-colors duration-300"
-              />
-              
-              <input
-                type="password"
-                inputMode="numeric"
-                maxLength={6}
-                value={changePinForm.confirmPin}
-                onChange={(e) => setChangePinForm({...changePinForm, confirmPin: e.target.value.replace(/\D/g, '')})}
-                placeholder="Konfirmasi PIN Baru"
-                className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 p-3 rounded-xl text-center text-lg font-bold tracking-widest text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-600 focus:border-orange-500 dark:focus:border-orange-400 outline-none transition-colors duration-300"
-              />
-            </div>
-
-            <div className="flex gap-2 mt-4">
-              <button
-                onClick={() => {
-                  setShowChangePinModal(false);
-                  setChangePinForm({ oldPin: '', newPin: '', confirmPin: '' });
-                }}
-                className="flex-1 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-900 dark:text-white py-3 rounded-xl font-bold transition-all duration-300"
-              >
-                Batal
-              </button>
-              <button
-                onClick={handleChangePin}
-                className="flex-1 bg-orange-600 hover:bg-orange-700 dark:hover:bg-orange-500 text-white py-3 rounded-xl font-bold transition-all"
-              >
-                Ubah
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* APP INFO SECTION */}
-      <div className="bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden transition-colors duration-300 shadow-sm" ref={sectionRefs.appInfo}>
-        <button
-          onClick={() => toggleSection('appInfo')}
-          className="w-full p-5 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-900/80 transition-colors"
-        >
-          <div className="flex items-center gap-3">
-            <BarChart3 size={20} className="text-purple-600 dark:text-purple-400" />
-            <h3 className="font-bold text-slate-900 dark:text-white">Informasi Aplikasi</h3>
-          </div>
-          <ChevronDown size={20} className={`text-slate-600 dark:text-slate-400 transition-transform ${sections.appInfo ? 'rotate-180' : ''}`} />
-        </button>
-
-        {sections.appInfo && (
-          <div className="border-t border-slate-200 dark:border-slate-800 p-5 space-y-3 animate-in fade-in duration-300">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg">
-                <p className="text-xs text-slate-600 dark:text-slate-400">Total Wallets</p>
-                <p className="text-xl font-bold text-slate-900 dark:text-white">{wallets.length}</p>
-              </div>
-              <div className="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg">
-                <p className="text-xs text-slate-600 dark:text-slate-400">Total Budgets</p>
-                <p className="text-xl font-bold text-slate-900 dark:text-white">{budgets.length}</p>
-              </div>
-              <div className="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg">
-                <p className="text-xs text-slate-600 dark:text-slate-400">Total Transactions</p>
-                <p className="text-xl font-bold text-slate-900 dark:text-white">{transactions.length}</p>
-              </div>
-              <div className="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg">
-                <p className="text-xs text-slate-600 dark:text-slate-400">Logged as</p>
-                <p className="text-lg font-bold text-slate-900 dark:text-white">{user || '-'}</p>
-              </div>
-              <div className="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg col-span-2">
-                <p className="text-xs text-slate-600 dark:text-slate-400">Firebase Connection</p>
-                <p className="text-sm font-bold text-slate-900 dark:text-white">Env: {environment}</p>
-                <p className="text-xs text-slate-700 dark:text-slate-300">Project: {firebaseConfig?.projectId || '-'}</p>
-              </div>
-            </div>
-
-            <div className="pt-3 border-t border-slate-200 dark:border-slate-800">
-              <p className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase mb-3">Kategori Default</p>
-
-              <div className="space-y-2 text-xs">
-                <div>
-                  <p className="font-semibold text-slate-900 dark:text-white mb-1">👛 Wallets</p>
-                  <div className="text-slate-700 dark:text-slate-300 space-y-0.5">
-                    <div>• Tabungan (Cash, Muamalat, Seabank)</div>
-                    <div>• Emas (Fisik, Pegadaian Digital)</div>
-                    <div>• Saham (Bibit, Stockbit)</div>
-                  </div>
-                </div>
-                <div>
-                  <p className="font-semibold text-slate-900 dark:text-white mb-1 mt-2">📊 Budgets</p>
-                  <div className="text-slate-700 dark:text-slate-300 space-y-0.5">
-                    <div>• Makan, Rumah Tangga, Anak, Transportasi, Lain-lain</div>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         )}
       </div>
