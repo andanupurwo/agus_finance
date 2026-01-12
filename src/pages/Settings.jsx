@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react';
-import { ChevronDown, Info, BookOpen, Upload, BarChart3, Sun, Moon, Monitor, Lock, Trash2, Eye, EyeOff } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { ChevronDown, Info, BookOpen, Upload, BarChart3, Sun, Moon, Monitor, Lock, Trash2, Eye, EyeOff, Users, UserPlus, KeyRound, Unlock, UserX } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { BulkImport } from '../components/BulkImport';
 import { cacheManager } from '../utils/cacheManager';
@@ -7,8 +7,9 @@ import { firebaseConfig, environment } from '../firebase';
 import { db } from '../firebase';
 import { collection, getDocs, writeBatch } from 'firebase/firestore';
 import { changePin, validatePinStrength } from '../utils/pinManager';
+import { getAllUsers, createUser, resetUserPin, unlockUser, deleteUser, getUserStats } from '../utils/userManager';
 
-export const Settings = ({ wallets, budgets, transactions, setLoading, loading, user, showToast, showConfirm, setUser, onForceRefresh }) => {
+export const Settings = ({ wallets, budgets, transactions, setLoading, loading, user, userRole, showToast, showConfirm, setUser, onForceRefresh }) => {
   const { themeMode, setTheme } = useTheme();
   const isProd = typeof import.meta !== 'undefined' ? import.meta.env?.PROD : false;
   const [sections, setSections] = useState({
@@ -18,7 +19,8 @@ export const Settings = ({ wallets, budgets, transactions, setLoading, loading, 
     import: false,
     changPin: false,
     appInfo: false,
-    cache: false
+    cache: false,
+    userManagement: false
   });
   const sectionRefs = {
     theme: useRef(null),
@@ -27,7 +29,8 @@ export const Settings = ({ wallets, budgets, transactions, setLoading, loading, 
     import: useRef(null),
     changPin: useRef(null),
     appInfo: useRef(null),
-    cache: useRef(null)
+    cache: useRef(null),
+    userManagement: useRef(null)
   };
   
   // Change PIN state
@@ -37,6 +40,26 @@ export const Settings = ({ wallets, budgets, transactions, setLoading, loading, 
   const [showPinNew, setShowPinNew] = useState(false);
   const [showPinConfirm, setShowPinConfirm] = useState(false);
   const [pinStrength, setPinStrength] = useState(null);
+
+  // User Management state (superadmin only)
+  const [users, setUsers] = useState([]);
+  const [showAddUserModal, setShowAddUserModal] = useState(false);
+  const [newUserForm, setNewUserForm] = useState({ username: '', pin: '' });
+  const [userStats, setUserStats] = useState({ total: 0, active: 0, locked: 0 });
+
+  // Load users if superadmin
+  useEffect(() => {
+    if (userRole === 'superadmin') {
+      refreshUsers();
+    }
+  }, [userRole]);
+
+  const refreshUsers = () => {
+    const allUsers = getAllUsers();
+    const stats = getUserStats();
+    setUsers(allUsers);
+    setUserStats(stats);
+  };
 
   const toggleSection = (section) => {
     setSections(prev => {
@@ -52,7 +75,8 @@ export const Settings = ({ wallets, budgets, transactions, setLoading, loading, 
         import: section === 'import',
         changPin: section === 'changPin',
         appInfo: section === 'appInfo',
-        cache: section === 'cache'
+        cache: section === 'cache',
+        userManagement: section === 'userManagement'
       };
     });
 
@@ -256,6 +280,158 @@ export const Settings = ({ wallets, budgets, transactions, setLoading, loading, 
         )}
       </div>
 
+      {/* USER MANAGEMENT SECTION - SUPERADMIN ONLY */}
+      {userRole === 'superadmin' && (
+        <div className="bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden transition-colors duration-300 shadow-sm" ref={sectionRefs.userManagement}>
+          <button
+            onClick={() => toggleSection('userManagement')}
+            className="w-full p-5 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-900/80 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <Users size={20} className="text-rose-600 dark:text-rose-400" />
+              <div className="text-left">
+                <h3 className="font-bold text-slate-900 dark:text-white">Kelola Pengguna</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  {userStats.total} user ({userStats.locked} terkunci)
+                </p>
+              </div>
+            </div>
+            <ChevronDown size={20} className={`text-slate-600 dark:text-slate-400 transition-transform ${sections.userManagement ? 'rotate-180' : ''}`} />
+          </button>
+
+          {sections.userManagement && (
+            <div className="border-t border-slate-200 dark:border-slate-800 p-5 space-y-4 animate-in fade-in duration-300">
+              {/* Stats Cards */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 p-3 rounded-xl">
+                  <p className="text-xs text-blue-600 dark:text-blue-400 font-medium">Total User</p>
+                  <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">{userStats.total}</p>
+                </div>
+                <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 p-3 rounded-xl">
+                  <p className="text-xs text-green-600 dark:text-green-400 font-medium">Aktif</p>
+                  <p className="text-2xl font-bold text-green-700 dark:text-green-300">{userStats.active}</p>
+                </div>
+                <div className="bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20 p-3 rounded-xl">
+                  <p className="text-xs text-red-600 dark:text-red-400 font-medium">Terkunci</p>
+                  <p className="text-2xl font-bold text-red-700 dark:text-red-300">{userStats.locked}</p>
+                </div>
+              </div>
+
+              {/* Add User Button */}
+              <button
+                onClick={() => setShowAddUserModal(true)}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white rounded-xl transition-all shadow-sm hover:shadow-md"
+              >
+                <UserPlus size={18} />
+                <span className="font-semibold">Tambah User Baru</span>
+              </button>
+
+              {/* User List */}
+              <div className="space-y-2">
+                {users.length === 0 ? (
+                  <div className="text-center py-8 text-slate-500 dark:text-slate-400">
+                    <Users size={48} className="mx-auto mb-2 opacity-30" />
+                    <p className="text-sm">Belum ada user</p>
+                  </div>
+                ) : (
+                  users.map((userData) => (
+                    <div
+                      key={userData.username}
+                      className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700"
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-bold text-slate-900 dark:text-white">{userData.username}</h4>
+                            {userData.isLocked && (
+                              <span className="px-2 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 text-xs font-semibold rounded-full">
+                                LOCKED
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                            {userData.failedAttempts > 0 && `${userData.failedAttempts} percobaan gagal • `}
+                            {userData.lastChanged 
+                              ? `PIN diubah ${new Date(userData.lastChanged).toLocaleDateString('id-ID')}`
+                              : 'Belum pernah ubah PIN'}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            if (confirm(`Reset PIN untuk user "${userData.username}" menjadi "000000"?`)) {
+                              const result = resetUserPin(userData.username, '000000');
+                              if (result.success) {
+                                showToast(result.message, 'success');
+                                refreshUsers();
+                              } else {
+                                showToast(result.message, 'error');
+                              }
+                            }
+                          }}
+                          className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors text-sm font-medium"
+                        >
+                          <KeyRound size={14} />
+                          Reset PIN
+                        </button>
+
+                        {userData.isLocked && (
+                          <button
+                            onClick={() => {
+                              if (confirm(`Buka kunci akun "${userData.username}"?`)) {
+                                const result = unlockUser(userData.username);
+                                if (result.success) {
+                                  showToast(result.message, 'success');
+                                  refreshUsers();
+                                } else {
+                                  showToast(result.message, 'error');
+                                }
+                              }
+                            }}
+                            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors text-sm font-medium"
+                          >
+                            <Unlock size={14} />
+                            Unlock
+                          </button>
+                        )}
+
+                        <button
+                          onClick={() => {
+                            if (confirm(`HAPUS user "${userData.username}"?\n\nSemua data user ini akan hilang permanen!`)) {
+                              if (confirm(`Yakin 100% ingin hapus "${userData.username}"? Tidak bisa dibatalkan!`)) {
+                                const result = deleteUser(userData.username);
+                                if (result.success) {
+                                  showToast(result.message, 'success');
+                                  refreshUsers();
+                                } else {
+                                  showToast(result.message, 'error');
+                                }
+                              }
+                            }
+                          }}
+                          className="flex items-center justify-center gap-1.5 px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors text-sm font-medium"
+                        >
+                          <UserX size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                <p className="text-xs text-amber-800 dark:text-amber-300">
+                  <span className="font-semibold">⚠️ Perhatian:</span> Reset PIN akan mengatur ulang ke "000000". User harus segera mengganti PIN mereka!
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* APP INFO SECTION */}
       <div className="bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden transition-colors duration-300 shadow-sm" ref={sectionRefs.appInfo}>
         <button
@@ -451,6 +627,99 @@ export const Settings = ({ wallets, budgets, transactions, setLoading, loading, 
                 className="flex-1 bg-orange-600 hover:bg-orange-700 dark:hover:bg-orange-500 text-white py-3 rounded-xl font-bold transition-all"
               >
                 Ganti
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ADD USER MODAL - SUPERADMIN ONLY */}
+      {showAddUserModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/40 dark:bg-black/60 backdrop-blur-md animate-in fade-in duration-300" onClick={() => {
+          setShowAddUserModal(false);
+          setNewUserForm({ username: '', pin: '' });
+        }}>
+          <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl border border-slate-200 dark:border-slate-800 p-6 animate-in zoom-in-95 transition-colors duration-300 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">👤 Tambah User Baru</h3>
+            <p className="text-xs text-slate-600 dark:text-slate-400 mb-4">Buat akun user baru untuk aplikasi</p>
+            
+            <div className="space-y-3">
+              {/* Username Input */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Username</label>
+                <input
+                  type="text"
+                  value={newUserForm.username}
+                  onChange={(e) => setNewUserForm({...newUserForm, username: e.target.value})}
+                  placeholder="Minimal 3 karakter"
+                  className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 p-3 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-600 focus:border-rose-500 dark:focus:border-rose-400 outline-none transition-colors duration-300"
+                />
+              </div>
+              
+              {/* Default PIN Input */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">PIN Default (6 digit)</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={newUserForm.pin}
+                  onChange={(e) => setNewUserForm({...newUserForm, pin: e.target.value.replace(/\D/g, '')})}
+                  placeholder="000000"
+                  className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 p-3 rounded-xl text-center text-lg font-bold tracking-widest text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-600 focus:border-rose-500 dark:focus:border-rose-400 outline-none transition-colors duration-300"
+                />
+              </div>
+
+              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+                <p className="text-xs text-amber-800 dark:text-amber-300">
+                  💡 User baru akan dibuat dengan PIN default. User harus mengganti PIN saat login pertama kali.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-2 mt-4">
+              <button
+                onClick={() => {
+                  setShowAddUserModal(false);
+                  setNewUserForm({ username: '', pin: '' });
+                }}
+                className="flex-1 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-900 dark:text-white py-3 rounded-xl font-bold transition-all duration-300"
+              >
+                Batal
+              </button>
+              <button
+                onClick={() => {
+                  const username = newUserForm.username.trim();
+                  const pin = newUserForm.pin || '000000';
+                  
+                  if (!username) {
+                    showToast('Username tidak boleh kosong', 'error');
+                    return;
+                  }
+                  
+                  if (username.length < 3) {
+                    showToast('Username minimal 3 karakter', 'error');
+                    return;
+                  }
+                  
+                  if (pin.length !== 6) {
+                    showToast('PIN harus 6 digit', 'error');
+                    return;
+                  }
+                  
+                  const result = createUser(username, pin);
+                  if (result.success) {
+                    showToast(`✓ User "${username}" berhasil dibuat dengan PIN: ${pin}`, 'success');
+                    setShowAddUserModal(false);
+                    setNewUserForm({ username: '', pin: '' });
+                    refreshUsers();
+                  } else {
+                    showToast(result.message, 'error');
+                  }
+                }}
+                className="flex-1 bg-rose-600 hover:bg-rose-700 dark:hover:bg-rose-500 text-white py-3 rounded-xl font-bold transition-all"
+              >
+                Buat User
               </button>
             </div>
           </div>

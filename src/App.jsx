@@ -19,7 +19,14 @@ import { verifyPin, setPinData } from './utils/pinManager';
 
 const MAGIC_CODES = {
   '081111': 'Purwo',
-  '140222': 'Ashri'
+  '140222': 'Ashri',
+  '999999': 'SuperAdmin'
+};
+
+const USER_ROLES = {
+  'SuperAdmin': 'superadmin',
+  'Purwo': 'user',
+  'Ashri': 'user'
 };
 
 export default function App() {
@@ -281,6 +288,7 @@ export default function App() {
             setLoading={setLoading}
             loading={loading}
             user={user}
+            userRole={USER_ROLES[user] || 'user'}
             setUser={setUser}
             showToast={showToast}
             showConfirm={showConfirm}
