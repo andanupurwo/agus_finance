@@ -1,15 +1,10 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Check if user is superadmin
-    function isSuperAdmin() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'superadmin';
-    }
-    
-    // Check if user is admin or superadmin
-    function isAdmin() {
-      let userRole = get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
-      return userRole == 'admin' || userRole == 'superadmin';
+    // Check if user document exists and has superadmin role
+    function isSuperAdmin(uid) {
+      return exists(/databases/$(database)/documents/users/$(uid)) &&
+             get(/databases/$(database)/documents/users/$(uid)).data.role == 'superadmin';
     }
     
     // Check if user owns this resource
@@ -22,11 +17,11 @@ service cloud.firestore {
       // Any authenticated user can read their own profile
       allow read: if request.auth.uid == userId;
       // Superadmin can read all users
-      allow read: if isSuperAdmin();
+      allow read: if isSuperAdmin(request.auth.uid);
       // Users can write their own profile
       allow write: if request.auth.uid == userId;
       // Only superadmin can modify user roles or delete users
-      allow write: if isSuperAdmin();
+      allow delete: if isSuperAdmin(request.auth.uid);
     }
     
     // Wallets collection - User-specific access
