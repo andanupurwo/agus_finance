@@ -49,7 +49,7 @@ export default function App() {
           const event = JSON.parse(e.newValue);
           // If PIN changed for a different user, logout current user
           if (event.user !== user) {
-            showToast(`🔐 Kode sakti telah diubah oleh ${event.user}. Anda akan logout.`, 'warning');
+            showToast(`🔐 PIN telah diubah oleh ${event.user}. Anda akan logout.`, 'warning');
             setTimeout(() => {
               setUser(null);
               setMagicCode('');
@@ -104,7 +104,7 @@ export default function App() {
   const handleMagicLogin = () => {
     const trimmed = magicCode.trim().toLowerCase();
     if (!trimmed) {
-      showToast('Masukkan kode sakti', 'error');
+      showToast('Masukkan PIN', 'error');
       return;
     }
     // Debug: log available codes
@@ -112,7 +112,7 @@ export default function App() {
     console.log('Input:', trimmed);
     const found = MAGIC_CODES[trimmed];
     if (!found) {
-      showToast('Kode sakti salah', 'error');
+      showToast('PIN salah', 'error');
       return;
     }
     setUser(found);
@@ -311,13 +311,13 @@ export default function App() {
         <div className="flex-1 flex items-center justify-center px-4 sm:px-6 pb-[env(safe-area-inset-bottom)]">
             <div className="w-full max-w-sm space-y-4">
               <h1 className="text-xl font-extrabold text-slate-900 dark:text-white">Masuk Cepat</h1>
-              <p className="text-xs text-slate-600 dark:text-slate-400">Masukkan kode sakti untuk lanjut.</p>
+              <p className="text-xs text-slate-600 dark:text-slate-400">Masukkan PIN untuk lanjut.</p>
               <input
                 type="password"
                 value={magicCode}
                 onChange={(e) => setMagicCode(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleMagicLogin()}
-                placeholder="Kode sakti"
+                placeholder="PIN"
                 className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-500 focus:border-blue-500 dark:focus:border-blue-400 outline-none transition-colors duration-300"
               />
               <button

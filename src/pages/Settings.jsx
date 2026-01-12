@@ -108,7 +108,7 @@ export const Settings = ({ wallets, budgets, transactions, setLoading, loading, 
       timestamp: Date.now()
     }));
     
-    showToast(`✓ Kode sakti berhasil diganti! User lain akan logout otomatis.`, 'success');
+    showToast(`✓ PIN berhasil diganti! User lain akan logout otomatis.`, 'success');
     
     // Reset form
     setChangePinForm({ oldPin: '', newPin: '', confirmPin: '' });
@@ -304,7 +304,7 @@ export const Settings = ({ wallets, budgets, transactions, setLoading, loading, 
         >
           <div className="flex items-center gap-3">
             <Lock size={20} className="text-orange-600 dark:text-orange-400" />
-            <h3 className="font-bold text-slate-900 dark:text-white">Ganti Kode Sakti</h3>
+            <h3 className="font-bold text-slate-900 dark:text-white">Ganti PIN</h3>
           </div>
           <ChevronDown size={20} className={`text-slate-600 dark:text-slate-400 transition-transform ${sections.changPin ? 'rotate-180' : ''}`} />
         </button>
@@ -312,18 +312,78 @@ export const Settings = ({ wallets, budgets, transactions, setLoading, loading, 
         {sections.changPin && (
           <div className="border-t border-slate-200 dark:border-slate-800 p-5 space-y-4 animate-in fade-in duration-300">
             <p className="text-xs text-slate-600 dark:text-slate-400">
-              User lain yang sedang login akan otomatis logout ketika Anda mengubah kode sakti.
+              User lain yang sedang login akan otomatis logout ketika Anda mengubah PIN.
             </p>
             
             <button
               onClick={() => setShowChangePinModal(true)}
               className="w-full py-3 rounded-xl bg-orange-600 hover:bg-orange-700 dark:hover:bg-orange-500 text-white font-bold transition-all"
             >
-              Ubah Kode Sakti
+              Ubah PIN
             </button>
           </div>
         )}
       </div>
+
+      {/* CHANGE PIN MODAL */}
+      {showChangePinModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/40 dark:bg-black/60 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setShowChangePinModal(false)}>
+          <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl border border-slate-200 dark:border-slate-800 p-6 animate-in zoom-in-95 transition-colors duration-300 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">🔐 Ganti PIN</h3>
+            <p className="text-xs text-slate-600 dark:text-slate-400 mb-4">Masukkan PIN lama dan PIN baru (6 digit angka)</p>
+            
+            <div className="space-y-3">
+              <input
+                type="password"
+                inputMode="numeric"
+                maxLength={6}
+                value={changePinForm.oldPin}
+                onChange={(e) => setChangePinForm({...changePinForm, oldPin: e.target.value.replace(/\D/g, '')})}
+                placeholder="PIN Lama"
+                className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 p-3 rounded-xl text-center text-lg font-bold tracking-widest text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-600 focus:border-orange-500 dark:focus:border-orange-400 outline-none transition-colors duration-300"
+              />
+              
+              <input
+                type="password"
+                inputMode="numeric"
+                maxLength={6}
+                value={changePinForm.newPin}
+                onChange={(e) => setChangePinForm({...changePinForm, newPin: e.target.value.replace(/\D/g, '')})}
+                placeholder="PIN Baru"
+                className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 p-3 rounded-xl text-center text-lg font-bold tracking-widest text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-600 focus:border-orange-500 dark:focus:border-orange-400 outline-none transition-colors duration-300"
+              />
+              
+              <input
+                type="password"
+                inputMode="numeric"
+                maxLength={6}
+                value={changePinForm.confirmPin}
+                onChange={(e) => setChangePinForm({...changePinForm, confirmPin: e.target.value.replace(/\D/g, '')})}
+                placeholder="Konfirmasi PIN Baru"
+                className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 p-3 rounded-xl text-center text-lg font-bold tracking-widest text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-600 focus:border-orange-500 dark:focus:border-orange-400 outline-none transition-colors duration-300"
+              />
+            </div>
+
+            <div className="flex gap-2 mt-4">
+              <button
+                onClick={() => {
+                  setShowChangePinModal(false);
+                  setChangePinForm({ oldPin: '', newPin: '', confirmPin: '' });
+                }}
+                className="flex-1 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-900 dark:text-white py-3 rounded-xl font-bold transition-all duration-300"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleChangePin}
+                className="flex-1 bg-orange-600 hover:bg-orange-700 dark:hover:bg-orange-500 text-white py-3 rounded-xl font-bold transition-all"
+              >
+                Ganti
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* GUIDE SECTION */}
       <div className="bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden transition-colors duration-300 shadow-sm" ref={sectionRefs.guide}>
