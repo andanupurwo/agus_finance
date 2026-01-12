@@ -405,6 +405,12 @@ export const Settings = ({ wallets, budgets, transactions, setLoading, loading, 
 
                         <button
                           onClick={() => {
+                            // Check if trying to delete current user
+                            if (user && userData.username?.toLowerCase() === user.toLowerCase()) {
+                              showToast('❌ Tidak bisa menghapus akun yang sedang Anda gunakan!', 'error');
+                              return;
+                            }
+                            
                             if (confirm(`HAPUS user "${userData.username}"?\n\nSemua data user ini akan hilang permanen!`)) {
                               if (confirm(`Yakin 100% ingin hapus "${userData.username}"? Tidak bisa dibatalkan!`)) {
                                 const result = deleteUser(userData.username);
@@ -417,7 +423,8 @@ export const Settings = ({ wallets, budgets, transactions, setLoading, loading, 
                               }
                             }
                           }}
-                          className="flex items-center justify-center gap-1.5 px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors text-sm font-medium"
+                          disabled={user && userData.username?.toLowerCase() === user.toLowerCase()}
+                          className="flex items-center justify-center gap-1.5 px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <UserX size={14} />
                         </button>

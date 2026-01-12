@@ -1,7 +1,7 @@
 import React from 'react';
 import { LogOut } from 'lucide-react';
 
-export function Header({ user, onLogout }) {
+export function Header({ user, userPhoto, onLogout }) {
   // Format current date
   const getCurrentDate = () => {
     const options = { 
@@ -38,9 +38,17 @@ export function Header({ user, onLogout }) {
         
         <div className="flex items-center gap-2">
           {/* User Avatar */}
-          <div className="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-lg border border-white/10 bg-blue-600 dark:bg-blue-600">
-            {getInitial()}
-          </div>
+          {userPhoto ? (
+            <img 
+              src={userPhoto} 
+              alt="Profile" 
+              className="w-9 h-9 rounded-full shadow-lg border border-white/10 object-cover"
+            />
+          ) : (
+            <div className="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-lg border border-white/10 bg-blue-600 dark:bg-blue-600">
+              {getInitial()}
+            </div>
+          )}
           
           {/* Logout Button */}
           {onLogout && (
