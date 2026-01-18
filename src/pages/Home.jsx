@@ -239,10 +239,10 @@ export const Home = ({
 
           <div className="flex gap-2">
             <button onClick={() => handleTransactionClick('income')} disabled={loading} className="flex-1 bg-emerald-600 hover:bg-emerald-700 dark:hover:bg-emerald-500 text-white px-2 py-2.5 rounded-lg font-bold flex items-center justify-center gap-1 shadow-lg active:scale-95 transition-all disabled:opacity-50 text-xs sm:text-sm">
-              <ArrowDownCircle size={16} /> <span className="hidden sm:inline">Masuk</span>
+              <ArrowDownCircle size={16} /> <span className="hidden sm:inline">Pemasukan</span>
             </button>
             <button onClick={() => handleTransactionClick('expense')} disabled={loading} className="flex-1 bg-red-600 hover:bg-red-700 dark:hover:bg-red-500 text-white px-2 py-2.5 rounded-lg font-bold flex items-center justify-center gap-1 shadow-lg active:scale-95 transition-all disabled:opacity-50 text-xs sm:text-sm">
-              <ArrowUpCircle size={16} /> <span className="hidden sm:inline">Keluar</span>
+              <ArrowUpCircle size={16} /> <span className="hidden sm:inline">Pengeluaran</span>
             </button>
           </div>
         </div>
