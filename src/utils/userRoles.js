@@ -45,17 +45,21 @@ export const getOrCreateUser = async (firebaseUser) => {
     photoURL: firebaseUser.photoURL || null,
     role: role,
     familyId: null, // Will segera diisi
+    settings: {
+      budgetOrder: [],
+      walletOrder: []
+    },
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
 
   await setDoc(userRef, userData);
-  
+
   // Auto-create family untuk user baru dan set familyId
   const family = await createFamily(firebaseUser.uid, firebaseUser.displayName || 'Family');
   userData.familyId = family.id;
   await updateDoc(userRef, { familyId: family.id });
-  
+
   return userData;
 };
 

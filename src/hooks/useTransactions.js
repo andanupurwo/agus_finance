@@ -29,6 +29,80 @@ const calculateBudgetRemaining = (budget, used) => {
 };
 
 export const useTransactions = (showToast, showConfirm) => {
+  // Rollover budgets (carry back remaining to selected wallets)
+  const handleRollover = async (
+    plans,
+    wallets,
+    budgets,
+    transactions,
+    user,
+    setLoading,
+    familyId,
+    currentUserId
+  ) => {
+    // plans: Array of { budgetId, walletId }
+    if (!Array.isArray(plans) || plans.length === 0) {
+      showToast?.("Tidak ada budget untuk rollover", "info");
+      return;
+    }
+    if (!familyId) {
+      showToast?.('Family belum siap. Silakan relogin.', 'error');
+      return;
+    }
+
+    setLoading(true);
+    let processed = 0;
+    try {
+      for (const plan of plans) {
+        const budget = budgets.find(b => b.id === plan.budgetId);
+        const wallet = wallets.find(w => w.id === plan.walletId);
+        if (!budget || !wallet) continue;
+
+        // Hitung sisa budget yang valid (>= 1)
+        const used = calculateBudgetUsed(budget.id, transactions || []);
+        const remaining = calculateBudgetRemaining(budget, used);
+        const amountVal = Math.max(0, remaining);
+        if (amountVal <= 0) continue; // skip jika tidak ada sisa
+
+        // Kurangi limit budget (mengembalikan sisa)
+        const currentLimit = parseRupiah(budget.limit || '0');
+        const newLimit = Math.max(0, currentLimit - amountVal);
+        await updateDoc(doc(db, 'budgets', budget.id), { limit: formatRupiah(newLimit) });
+
+        // Tambahkan ke wallet
+        const currentWalletAmount = parseRupiah(wallet.amount || '0');
+        await updateDoc(doc(db, 'wallets', wallet.id), { amount: formatRupiah(currentWalletAmount + amountVal) });
+
+        // Catat transaksi rollover (transfer)
+        await addDoc(collection(db, 'transactions'), {
+          title: 'Rollover Budget',
+          amount: formatRupiah(amountVal),
+          type: 'transfer',
+          user: user,
+          createdBy: currentUserId,
+          familyId,
+          time: new Date().toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'}),
+          target: `${budget.name} → ${wallet.name}`,
+          fromId: budget.id,
+          toId: wallet.id,
+          fromType: 'budget',
+          toType: 'wallet',
+          createdAt: Date.now()
+        });
+
+        processed += 1;
+      }
+
+      if (processed > 0) {
+        showToast?.(`Rollover selesai: ${processed} budget diproses`, 'success');
+      } else {
+        showToast?.('Tidak ada sisa budget untuk diproses', 'info');
+      }
+    } catch (e) {
+      showToast?.(e.message || 'Gagal memproses rollover', 'error');
+    }
+    setLoading(false);
+  };
   const handleDailyTransaction = async (
     type,
     nominal,
@@ -512,6 +586,7 @@ export const useTransactions = (showToast, showConfirm) => {
     handleEdit,
     handleDelete,
     handleDeleteTransaction,
+    handleRollover,
     handleEditTransaction,
     handleNominalInput
   };

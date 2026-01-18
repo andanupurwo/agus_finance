@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db, auth, googleProvider } from './firebase';
-import { collection, onSnapshot, query, orderBy, deleteDoc, doc, getDocsFromServer } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, deleteDoc, doc, getDocsFromServer, updateDoc } from 'firebase/firestore';
 import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
 import { Home as HomeIcon, LogOut } from 'lucide-react';
 import { Home } from './pages/Home';
@@ -145,6 +145,7 @@ export default function App() {
   const {
     handleDailyTransaction,
     handleTransfer,
+    handleRollover,
     handleCreate,
     handleEdit,
     handleDelete,
@@ -166,22 +167,68 @@ export default function App() {
     return () => { unsubW(); unsubB(); unsubT(); };
   }, []);
 
-  // 2. ROLLOVER REMINDER
+  // 2. AUTO-MIGRATE ORDER FROM LOCALSTORAGE TO FIRESTORE
+  useEffect(() => {
+    const migrateOrderToFirestore = async () => {
+      if (!firebaseUser?.uid || !userData) return;
+
+      // Check if already migrated (has settings field with data)
+      if (userData?.settings?.budgetOrder || userData?.settings?.walletOrder) {
+        // Already migrated, clean up localStorage
+        localStorage.removeItem('budgetOrder');
+        localStorage.removeItem('walletOrder');
+        return;
+      }
+
+      // Get from localStorage
+      const budgetOrderStr = localStorage.getItem('budgetOrder');
+      const walletOrderStr = localStorage.getItem('walletOrder');
+
+      if (budgetOrderStr || walletOrderStr) {
+        try {
+          const userRef = doc(db, 'users', firebaseUser.uid);
+          await updateDoc(userRef, {
+            'settings.budgetOrder': budgetOrderStr ? JSON.parse(budgetOrderStr) : [],
+            'settings.walletOrder': walletOrderStr ? JSON.parse(walletOrderStr) : [],
+            updatedAt: new Date().toISOString()
+          });
+
+          // Clear localStorage after successful migration
+          localStorage.removeItem('budgetOrder');
+          localStorage.removeItem('walletOrder');
+
+          console.log('✓ Order migrated from localStorage to Firestore');
+        } catch (error) {
+          console.error('Failed to migrate order:', error);
+        }
+      }
+    };
+
+    migrateOrderToFirestore();
+  }, [firebaseUser?.uid, userData]);
+
+  // 3. ROLLOVER PROMPT (First day of month, one-time per month)
   useEffect(() => {
     if (wallets.length === 0 || budgets.length === 0) return;
     const today = new Date();
     const isFirstOfMonth = today.getDate() === 1;
     if (!isFirstOfMonth) return;
-    showToast('🔔 Awal bulan: periksa sisa budget dan set ulang limit secara manual.', 'info');
+    const monthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    const shownKey = localStorage.getItem('rolloverPromptShown');
+    if (shownKey === monthKey) return;
+    // Mark as shown to avoid repeated prompts this month
+    localStorage.setItem('rolloverPromptShown', monthKey);
+    // Open rollover modal for user to process
+    setShowModal('rollover');
   }, [wallets, budgets]);
 
   // Calculate totals
   const walletTotal = wallets.reduce((acc, w) => acc + parseRupiah(w.amount), 0);
   const budgetTotal = budgets.reduce((acc, b) => {
-    const expenseTransactions = transactions.filter(t => 
+    const expenseTransactions = transactions.filter(t =>
       t.type === 'expense' && t.targetId === b.id
     );
-    const totalExpense = expenseTransactions.reduce((sum, t) => 
+    const totalExpense = expenseTransactions.reduce((sum, t) =>
       sum + parseRupiah(t.amount), 0
     );
     const available = parseRupiah(b.limit) - totalExpense;
@@ -192,7 +239,7 @@ export default function App() {
   // Role-based access control
   const userRole = userData?.role || 'user';
   const isReadOnly = userRole === 'user';
-  const user = firebaseUser?.email || firebaseUser?.displayName;
+  const user = userData?.displayName || firebaseUser?.displayName || firebaseUser?.email;
 
   const renderContent = () => {
     switch (activeTab) {
@@ -222,6 +269,7 @@ export default function App() {
             isReadOnly={isReadOnly}
             familyId={userData?.familyId}
             currentUserId={firebaseUser?.uid}
+            userData={userData}
           />
         );
       case 'activity':
@@ -254,6 +302,8 @@ export default function App() {
             showConfirm={showConfirm}
             isReadOnly={isReadOnly}
             setEditingData={setEditingData}
+            userData={userData}
+            currentUserId={firebaseUser?.uid}
           />
         );
       case 'settings':
@@ -323,12 +373,12 @@ export default function App() {
           <div className="w-full max-w-md">
             {/* Modern Container */}
             <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-8 sm:p-10 space-y-8">
-              
+
               {/* Logo */}
               <div className="flex justify-center">
-                <img 
-                  src="/pwa-192x192.png" 
-                  alt="Agus Finance Logo" 
+                <img
+                  src="/pwa-192x192.png"
+                  alt="Agus Finance Logo"
                   className="w-36 h-36"
                 />
               </div>
@@ -353,10 +403,10 @@ export default function App() {
                 <div className="relative flex items-center justify-center gap-3 py-4 px-6 rounded-xl bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 group-hover:border-blue-500 dark:group-hover:border-blue-500 transition-all duration-300 shadow-md group-hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed">
                   {/* Google Logo SVG - Official Colors */}
                   <svg className="w-6 h-6 flex-shrink-0" viewBox="0 0 24 24">
-                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
                   </svg>
                   <span className="font-semibold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-300">
                     {loading ? 'Memproses...' : 'Masuk dengan Google'}
@@ -414,7 +464,7 @@ export default function App() {
               <h3 className="text-lg font-bold text-slate-900 dark:text-white">Logout?</h3>
               <p className="text-sm text-slate-600 dark:text-slate-400 mt-2">Anda yakin ingin keluar dari aplikasi?</p>
             </div>
-            
+
             <div className="flex gap-3">
               <button
                 onClick={() => setShowLogoutModal(false)}
@@ -446,6 +496,7 @@ export default function App() {
         setNewData={setNewData}
         loading={loading}
         handleTransfer={handleTransfer}
+        handleRollover={handleRollover}
         handleCreate={handleCreate}
         handleEdit={handleEdit}
         user={user}

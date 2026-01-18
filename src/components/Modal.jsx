@@ -50,6 +50,7 @@ export const Modal = ({
   handleTransfer,
   handleCreate,
   handleEdit,
+  handleRollover,
   user,
   setLoading,
   transactions,
@@ -60,6 +61,18 @@ export const Modal = ({
   currentUserEmail
 }) => {
   const { handleNominalInput } = useTransactions();
+
+  // Local state: wallet selection per budget for rollover
+  const [rolloverSelections, setRolloverSelections] = React.useState({});
+  React.useEffect(() => {
+    if (showModal === 'rollover' && wallets?.length) {
+      // Default all budgets to first wallet
+      const defaultWalletId = wallets[0]?.id;
+      const initial = {};
+      budgets.forEach(b => { initial[b.id] = defaultWalletId; });
+      setRolloverSelections(initial);
+    }
+  }, [showModal, wallets, budgets]);
 
   // Determine source type (wallet or budget)
   const sourceType = React.useMemo(() => {
@@ -76,7 +89,17 @@ export const Modal = ({
       <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl border border-slate-200 dark:border-slate-800 p-6 animate-in zoom-in-95 transition-colors duration-300 shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-center mb-4">
           <h3 className="font-bold text-slate-900 dark:text-white text-lg">
-            {showModal === 'transfer' ? 'Alokasi / Pindah Dana' : showModal === 'addWallet' ? 'Buat Wallet Baru' : showModal === 'addBudget' ? 'Buat Budget Baru' : showModal === 'editWallet' ? 'Edit Wallet' : 'Edit Budget'}
+            {showModal === 'transfer'
+              ? 'Alokasi / Pindah Dana'
+              : showModal === 'rollover'
+              ? 'Rollover Budget ke Wallet'
+              : showModal === 'addWallet'
+              ? 'Buat Wallet Baru'
+              : showModal === 'addBudget'
+              ? 'Buat Budget Baru'
+              : showModal === 'editWallet'
+              ? 'Edit Wallet'
+              : 'Edit Budget'}
           </h3>
           <button onClick={() => setShowModal(null)}><X size={20} className="text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"/></button>
         </div>
@@ -109,6 +132,53 @@ export const Modal = ({
               <input type="text" className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white p-3 rounded-xl text-sm font-bold placeholder-slate-500 dark:placeholder-slate-600 focus:border-blue-500 dark:focus:border-blue-400 outline-none transition-colors duration-300" placeholder="0" value={transferData.amount} onChange={e => handleNominalInput(e, val => setTransferData({...transferData, amount: val}))} />
             </div>
             <button onClick={() => handleTransfer(transferData, wallets, budgets, transactions, setTransferData, setShowModal, user, setLoading, familyId, currentUserId)} disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700 dark:hover:bg-blue-500 py-3 rounded-xl font-bold text-white mt-2 transition-all disabled:opacity-50">Proses Alokasi</button>
+          </div>
+        ) : showModal === 'rollover' ? (
+          <div className="space-y-4">
+            <p className="text-[11px] text-slate-600 dark:text-slate-400">Pilih wallet tujuan untuk setiap budget. Hanya budget dengan sisa &gt; 0 yang akan diproses.</p>
+            <div className="max-h-80 overflow-y-auto space-y-3 pr-1">
+              {budgets.map(b => {
+                const used = transactions
+                  .filter(t => t.type === 'expense' && t.targetId === b.id)
+                  .reduce((sum, t) => sum + parseRupiah(t.amount), 0);
+                const remaining = Math.max(0, parseRupiah(b.limit || '0') - used);
+                const selectedWalletId = rolloverSelections[b.id] || '';
+                return (
+                  <div key={b.id} className="border border-slate-200 dark:border-slate-800 rounded-xl p-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-bold text-slate-900 dark:text-white">{b.name}</p>
+                        <p className="text-xs text-slate-600 dark:text-slate-400">Sisa: Rp {remaining.toLocaleString('id-ID')}</p>
+                      </div>
+                      <div className="w-40">
+                        <select
+                          className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white p-2 rounded-lg text-xs focus:border-blue-500 dark:focus:border-blue-400 outline-none transition-colors duration-300"
+                          value={selectedWalletId}
+                          onChange={e => setRolloverSelections(prev => ({ ...prev, [b.id]: e.target.value }))}
+                        >
+                          {wallets.map(w => (
+                            <option key={w.id} value={w.id}>{w.name} (Rp {w.amount})</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <button
+              onClick={() => {
+                const plans = budgets
+                  .map(b => ({ budgetId: b.id, walletId: rolloverSelections[b.id] }))
+                  .filter(p => !!p.walletId);
+                handleRollover(plans, wallets, budgets, transactions, user, setLoading, familyId, currentUserId);
+                setShowModal(null);
+              }}
+              disabled={loading || wallets.length === 0}
+              className="w-full bg-blue-600 hover:bg-blue-700 dark:hover:bg-blue-500 py-3 rounded-xl font-bold text-white mt-2 transition-all disabled:opacity-50"
+            >
+              Proses Rollover
+            </button>
           </div>
         ) : showModal === 'editWallet' || showModal === 'editBudget' ? (
           <div className="space-y-4">

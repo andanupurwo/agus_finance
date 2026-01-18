@@ -1,16 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronDown, Info, BookOpen, Upload, BarChart3, Sun, Moon, Monitor, Trash2 } from 'lucide-react';
+import { ChevronDown, Info, BookOpen, Upload, BarChart3, Sun, Moon, Monitor, Trash2, Edit2, Check, X, User } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { BulkImport } from '../components/BulkImport';
 import { cacheManager } from '../utils/cacheManager';
 import { firebaseConfig, environment } from '../firebase';
 import { db } from '../firebase';
-import { collection, getDocs, writeBatch, query, where } from 'firebase/firestore';
+import { collection, getDocs, writeBatch, query, where, doc, updateDoc } from 'firebase/firestore';
 
 export const Settings = ({ wallets, budgets, transactions, setLoading, loading, user, userData, userRole, showToast, showConfirm, setUser, onForceRefresh }) => {
   const { themeMode, setTheme } = useTheme();
   const isProd = typeof import.meta !== 'undefined' ? import.meta.env?.PROD : false;
   const [sections, setSections] = useState({
+    profile: false,
     theme: false,
     about: false,
     guide: false,
@@ -18,7 +19,11 @@ export const Settings = ({ wallets, budgets, transactions, setLoading, loading, 
     appInfo: false,
     cache: false
   });
+  const [editingName, setEditingName] = useState(false);
+  const [displayName, setDisplayName] = useState(userData?.displayName || '');
+
   const sectionRefs = {
+    profile: useRef(null),
     theme: useRef(null),
     about: useRef(null),
     guide: useRef(null),
@@ -35,6 +40,7 @@ export const Settings = ({ wallets, budgets, transactions, setLoading, loading, 
       }
       // Jika section yang diklik tertutup, buka dan tutup yang lain
       return {
+        profile: section === 'profile',
         theme: section === 'theme',
         about: section === 'about',
         guide: section === 'guide',
@@ -59,11 +65,149 @@ export const Settings = ({ wallets, budgets, transactions, setLoading, loading, 
     }, 50);
   };
 
+  const handleUpdateDisplayName = async () => {
+    if (!displayName.trim()) {
+      showToast?.('Nickname tidak boleh kosong', 'error');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const userRef = doc(db, 'users', userData.uid);
+      await updateDoc(userRef, {
+        displayName: displayName.trim(),
+        updatedAt: new Date().toISOString()
+      });
+      showToast?.('✓ Nickname berhasil diubah!', 'success');
+      setEditingName(false);
+      // Trigger a refresh after 500ms to update userData
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
+    } catch (error) {
+      showToast?.(error.message || 'Gagal mengubah nickname', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Sync displayName from userData when it changes
+  useEffect(() => {
+    if (userData?.displayName) {
+      setDisplayName(userData.displayName);
+    }
+  }, [userData]);
+
   return (
     <div className="space-y-4 animate-in fade-in duration-500 pb-20 px-1.5">
       <div>
         <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-1">Settings</h2>
         <p className="text-xs text-slate-500 dark:text-slate-400">Kelola aplikasi dan panduan penggunaan</p>
+      </div>
+
+      {/* PROFILE SECTION */}
+      <div className="bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden transition-colors duration-300 shadow-sm" ref={sectionRefs.profile}>
+        <button
+          onClick={() => toggleSection('profile')}
+          className="w-full p-5 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-900/80 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <User size={20} className="text-blue-600 dark:text-blue-400" />
+            <div className="text-left">
+              <h3 className="font-bold text-slate-900 dark:text-white">Profil Pengguna</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {userData?.displayName || 'Belum diatur'}
+              </p>
+            </div>
+          </div>
+          <ChevronDown size={20} className={`text-slate-600 dark:text-slate-400 transition-transform ${sections.profile ? 'rotate-180' : ''}`} />
+        </button>
+
+        {sections.profile && (
+          <div className="border-t border-slate-200 dark:border-slate-800 p-5 space-y-4 animate-in fade-in duration-300">
+            {/* Nickname Section */}
+            <div>
+              <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase mb-2 block">
+                Nickname / Display Name
+              </label>
+
+              {editingName ? (
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    placeholder="Masukkan nickname (mis: Papa, Mama, Anda)"
+                    className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-600 rounded-lg px-3 py-2 text-sm focus:border-blue-500 dark:focus:border-blue-400 outline-none transition-colors duration-300"
+                    maxLength={50}
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleUpdateDisplayName}
+                      disabled={loading || !displayName.trim()}
+                      className="flex-1 flex items-center justify-center gap-2 py-2 px-3 bg-blue-600 hover:bg-blue-700 dark:hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium text-sm transition-colors"
+                    >
+                      <Check size={16} />
+                      {loading ? 'Menyimpan...' : 'Simpan'}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEditingName(false);
+                        setDisplayName(userData?.displayName || '');
+                      }}
+                      disabled={loading}
+                      className="flex-1 flex items-center justify-center gap-2 py-2 px-3 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 disabled:opacity-50 text-slate-900 dark:text-white rounded-lg font-medium text-sm transition-colors"
+                    >
+                      <X size={16} />
+                      Batal
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-900/50 rounded-lg p-3">
+                  <div>
+                    <p className="text-sm font-bold text-slate-900 dark:text-white">
+                      {userData?.displayName || 'Belum diatur'}
+                    </p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                      Nama yang ditampilkan di transaksi
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setEditingName(true)}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 dark:hover:bg-blue-500 text-white rounded-lg text-xs font-medium transition-colors"
+                  >
+                    <Edit2 size={14} />
+                    Edit
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Email Section (Read-only) */}
+            <div>
+              <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase mb-2 block">
+                Email
+              </label>
+              <div className="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-3">
+                <p className="text-sm text-slate-700 dark:text-slate-300">
+                  {userData?.email || '-'}
+                </p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                  Email tidak bisa diubah
+                </p>
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-slate-200 dark:border-slate-800">
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                <p className="text-xs text-blue-900 dark:text-blue-300">
+                  <strong>💡 Tips:</strong> Nickname akan ditampilkan di semua transaksi baru yang Anda buat. Gunakan nama yang mudah dikenali (mis: Papa, Mama, Anda).
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* THEME SECTION */}
@@ -104,8 +248,8 @@ export const Settings = ({ wallets, budgets, transactions, setLoading, loading, 
                   showToast('Tema diubah ke Mode Terang', 'success');
                 }}
                 className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${themeMode === 'light'
-                    ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/20'
-                    : 'border-slate-200 dark:border-slate-700 hover:border-amber-300 dark:hover:border-amber-700'
+                  ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/20'
+                  : 'border-slate-200 dark:border-slate-700 hover:border-amber-300 dark:hover:border-amber-700'
                   }`}
               >
                 <Sun
@@ -113,8 +257,8 @@ export const Settings = ({ wallets, budgets, transactions, setLoading, loading, 
                   className={themeMode === 'light' ? 'text-amber-600 dark:text-amber-400' : 'text-slate-400'}
                 />
                 <span className={`text-xs font-medium ${themeMode === 'light'
-                    ? 'text-amber-700 dark:text-amber-300'
-                    : 'text-slate-600 dark:text-slate-400'
+                  ? 'text-amber-700 dark:text-amber-300'
+                  : 'text-slate-600 dark:text-slate-400'
                   }`}>
                   Terang
                 </span>
@@ -127,8 +271,8 @@ export const Settings = ({ wallets, budgets, transactions, setLoading, loading, 
                   showToast('Tema diubah ke Mode Gelap', 'success');
                 }}
                 className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${themeMode === 'dark'
-                    ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20'
-                    : 'border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-700'
+                  ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20'
+                  : 'border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-700'
                   }`}
               >
                 <Moon
@@ -136,8 +280,8 @@ export const Settings = ({ wallets, budgets, transactions, setLoading, loading, 
                   className={themeMode === 'dark' ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}
                 />
                 <span className={`text-xs font-medium ${themeMode === 'dark'
-                    ? 'text-indigo-700 dark:text-indigo-300'
-                    : 'text-slate-600 dark:text-slate-400'
+                  ? 'text-indigo-700 dark:text-indigo-300'
+                  : 'text-slate-600 dark:text-slate-400'
                   }`}>
                   Gelap
                 </span>
@@ -150,16 +294,16 @@ export const Settings = ({ wallets, budgets, transactions, setLoading, loading, 
                   showToast('Tema mengikuti pengaturan sistem', 'success');
                 }}
                 className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${themeMode === 'system'
-                    ? 'border-slate-500 bg-slate-50 dark:bg-slate-700/20'
-                    : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+                  ? 'border-slate-500 bg-slate-50 dark:bg-slate-700/20'
+                  : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
                   }`}
               >
                 <Monitor
                   size={24}
                   className={themeMode === 'system' ? 'text-slate-600 dark:text-slate-300' : 'text-slate-400'} />
                 <span className={`text-xs font-medium ${themeMode === 'system'
-                    ? 'text-slate-700 dark:text-slate-200'
-                    : 'text-slate-600 dark:text-slate-400'
+                  ? 'text-slate-700 dark:text-slate-200'
+                  : 'text-slate-600 dark:text-slate-400'
                   }`}>
                   Sistem
                 </span>
@@ -341,109 +485,110 @@ export const Settings = ({ wallets, budgets, transactions, setLoading, loading, 
         )}
       </div>
 
-      {/* CACHE MANAGEMENT SECTION */}
-      <div className="bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden transition-colors duration-300 shadow-sm" ref={sectionRefs.cache}>
-        <button
-          onClick={() => toggleSection('cache')}
-          className="w-full p-5 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-900/80 transition-colors"
-        >
-          <div className="flex items-center gap-3">
-            <Trash2 size={20} className="text-red-600 dark:text-red-400" />
-            <div className="text-left">
-              <h3 className="font-bold text-slate-900 dark:text-white">Bersihkan Cache</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Hapus data tersimpan di aplikasi</p>
+      {/* CACHE MANAGEMENT SECTION - HIDDEN (Too Dangerous) */}
+      {false && (
+        <div className="bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden transition-colors duration-300 shadow-sm" ref={sectionRefs.cache}>
+          <button
+            onClick={() => toggleSection('cache')}
+            className="w-full p-5 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-900/80 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <Trash2 size={20} className="text-red-600 dark:text-red-400" />
+              <div className="text-left">
+                <h3 className="font-bold text-slate-900 dark:text-white">Bersihkan Cache</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Hapus data tersimpan di aplikasi</p>
+              </div>
             </div>
-          </div>
-          <ChevronDown size={20} className={`text-slate-600 dark:text-slate-400 transition-transform ${sections.cache ? 'rotate-180' : ''}`} />
-        </button>
+            <ChevronDown size={20} className={`text-slate-600 dark:text-slate-400 transition-transform ${sections.cache ? 'rotate-180' : ''}`} />
+          </button>
 
-        {sections.cache && (
-          <div className="border-t border-slate-200 dark:border-slate-800 p-5 space-y-4 animate-in fade-in duration-300">
-            <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 rounded-lg p-4">
-              <p className="text-sm text-red-900 dark:text-red-200">
-                <span className="font-semibold">⚠️ Hati-hati!</span> Tombol di bawah akan menghapus <strong>SEMUA data</strong> di aplikasi dan server Firestore. Tindakan ini tidak bisa dibatalkan.
-              </p>
-            </div>
+          {sections.cache && (
+            <div className="border-t border-slate-200 dark:border-slate-800 p-5 space-y-4 animate-in fade-in duration-300">
+              <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 rounded-lg p-4">
+                <p className="text-sm text-red-900 dark:text-red-200">
+                  <span className="font-semibold">⚠️ Hati-hati!</span> Tombol di bawah akan menghapus <strong>SEMUA data</strong> di aplikasi dan server Firestore. Tindakan ini tidak bisa dibatalkan.
+                </p>
+              </div>
 
-            {/* Single Reset Button with Double Confirm */}
-            <button
-              onClick={async () => {
-                // First confirmation
-                const firstConfirm = await showConfirm('☢️ Hapus semua data? Yakin?');
-                if (!firstConfirm) return;
+              {/* Single Reset Button with Double Confirm */}
+              <button
+                onClick={async () => {
+                  // First confirmation
+                  const firstConfirm = await showConfirm('☢️ Hapus semua data? Yakin?');
+                  if (!firstConfirm) return;
 
-                // Second confirmation with warning text
-                const secondConfirm = await showConfirm(
-                  '⚠️ PERINGATAN: Ini akan MENGHAPUS SELAMANYA semua data di server dan aplikasi.\n\nKetik "HAPUS SEMUA" untuk melanjutkan.'
-                );
-                if (!secondConfirm) return;
+                  // Second confirmation with warning text
+                  const secondConfirm = await showConfirm(
+                    '⚠️ PERINGATAN: Ini akan MENGHAPUS SELAMANYA semua data di server dan aplikasi.\n\nKetik "HAPUS SEMUA" untuk melanjutkan.'
+                  );
+                  if (!secondConfirm) return;
 
-                try {
-                  setLoading(true);
-                  showToast('🗑️ Menghapus semua data...', 'warning');
-                  
-                  // Get user's familyId from userData
-                  const familyId = userData?.familyId;
-                  if (!familyId) {
-                    showToast('Error: Family ID tidak ditemukan', 'error');
-                    setLoading(false);
-                    return;
-                  }
-                  
-                  // Delete all documents in user's family from Firestore
-                  const collections = ['wallets', 'budgets', 'transactions'];
-                  for (const name of collections) {
-                    const q = query(collection(db, name), where('familyId', '==', familyId));
-                    const snap = await getDocs(q);
-                    let batch = writeBatch(db);
-                    let count = 0;
-                    for (const docRef of snap.docs) {
-                      batch.delete(docRef.ref);
-                      count++;
-                      if (count % 450 === 0) {
-                        await batch.commit();
-                        batch = writeBatch(db);
-                      }
+                  try {
+                    setLoading(true);
+                    showToast('🗑️ Menghapus semua data...', 'warning');
+
+                    // Get user's familyId from userData
+                    const familyId = userData?.familyId;
+                    if (!familyId) {
+                      showToast('Error: Family ID tidak ditemukan', 'error');
+                      setLoading(false);
+                      return;
                     }
-                    await batch.commit();
+
+                    // Delete all documents in user's family from Firestore
+                    const collections = ['wallets', 'budgets', 'transactions'];
+                    for (const name of collections) {
+                      const q = query(collection(db, name), where('familyId', '==', familyId));
+                      const snap = await getDocs(q);
+                      let batch = writeBatch(db);
+                      let count = 0;
+                      for (const docRef of snap.docs) {
+                        batch.delete(docRef.ref);
+                        count++;
+                        if (count % 450 === 0) {
+                          await batch.commit();
+                          batch = writeBatch(db);
+                        }
+                      }
+                      await batch.commit();
+                    }
+
+                    showToast('✓ Data server dihapus. Membersihkan cache lokal...', 'success');
+
+                    // Clear all local caches
+                    await cacheManager.clearAllCache();
+
+                    // Logout and reload
+                    showToast('✓ Semua data telah dihapus. Logout...', 'success');
+                    setUser(null);
+                    setTimeout(() => window.location.reload(), 1500);
+                  } catch (e) {
+                    showToast(e.message || 'Gagal reset total', 'error');
                   }
-                  
-                  showToast('✓ Data server dihapus. Membersihkan cache lokal...', 'success');
-                  
-                  // Clear all local caches
-                  await cacheManager.clearAllCache();
-                  
-                  // Logout and reload
-                  showToast('✓ Semua data telah dihapus. Logout...', 'success');
-                  setUser(null);
-                  setTimeout(() => window.location.reload(), 1500);
-                } catch (e) {
-                  showToast(e.message || 'Gagal reset total', 'error');
-                }
-                setLoading(false);
-              }}
-              disabled={loading}
-              className="w-full p-4 bg-red-600 hover:bg-red-700 dark:hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-lg transition-all duration-300"
-            >
-              {loading ? '⏳ Sedang dihapus...' : '☢️ RESET TOTAL - Hapus Semua Data'}
-            </button>
+                  setLoading(false);
+                }}
+                disabled={loading}
+                className="w-full p-4 bg-red-600 hover:bg-red-700 dark:hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-lg transition-all duration-300"
+              >
+                {loading ? '⏳ Sedang dihapus...' : '☢️ RESET TOTAL - Hapus Semua Data'}
+              </button>
 
-            <div className="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-3 text-xs text-slate-600 dark:text-slate-400">
-              <p className="font-semibold text-slate-900 dark:text-white mb-2">Apa yang dihapus:</p>
-              <ul className="space-y-1 list-disc list-inside">
-                <li>Semua wallet di server Firestore</li>
-                <li>Semua budget di server Firestore</li>
-                <li>Semua transaksi di server Firestore</li>
-                <li>Cache browser & localStorage</li>
-                <li>Service worker cache</li>
-                <li>Session Anda akan logout</li>
-              </ul>
+              <div className="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-3 text-xs text-slate-600 dark:text-slate-400">
+                <p className="font-semibold text-slate-900 dark:text-white mb-2">Apa yang dihapus:</p>
+                <ul className="space-y-1 list-disc list-inside">
+                  <li>Semua wallet di server Firestore</li>
+                  <li>Semua budget di server Firestore</li>
+                  <li>Semua transaksi di server Firestore</li>
+                  <li>Cache browser & localStorage</li>
+                  <li>Service worker cache</li>
+                  <li>Session Anda akan logout</li>
+                </ul>
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
 
-      
     </div>
   );
 };
