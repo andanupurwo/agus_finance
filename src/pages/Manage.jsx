@@ -274,6 +274,7 @@ export const Manage = ({
           setShowBudgetModal(false);
           setSelectedBudget(null);
         }}
+        familyUsers={familyUsers}
       />
     </div>
   );

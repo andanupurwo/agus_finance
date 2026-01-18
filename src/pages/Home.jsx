@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ArrowDownCircle, ArrowUpCircle, ArrowDownRight, ArrowUpRight, ArrowRightLeft } from 'lucide-react';
-import { parseRupiah, formatRupiah, isCurrentMonth, getMonthRange } from '../utils/formatter';
+import { parseRupiah, formatRupiah, isCurrentMonth, getMonthRange, getTransactionUserName } from '../utils/formatter';
 import { useTransactions } from '../hooks/useTransactions';
 import { Summary } from '../components/Summary';
 import { BudgetTransactionModal } from '../components/BudgetTransactionModal';
@@ -361,7 +361,7 @@ export const Home = ({
                       <div className="flex items-center gap-2 text-[10px] text-slate-600 dark:text-slate-500">
                         <span className="truncate">{t.target}</span>
                         {time && (<><span>•</span><span>{time}</span></>)}
-                        {t.user && (<><span>•</span><span>{t.user}</span></>)}
+                        {t.user && (<><span>•</span><span>{getTransactionUserName(t, familyUsers)}</span></>)}
                       </div>
                     </div>
                   </div>
@@ -380,6 +380,7 @@ export const Home = ({
           setShowBudgetModal(false);
           setSelectedBudget(null);
         }}
+        familyUsers={familyUsers}
       />
     </div>
   );

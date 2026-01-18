@@ -1,8 +1,8 @@
 import React from 'react';
 import { X, ArrowUpRight } from 'lucide-react';
-import { parseRupiah, formatRupiah } from '../utils/formatter';
+import { parseRupiah, formatRupiah, getTransactionUserName } from '../utils/formatter';
 
-export const BudgetTransactionModal = ({ budget, transactions, onClose, isOpen }) => {
+export const BudgetTransactionModal = ({ budget, transactions, onClose, isOpen, familyUsers }) => {
     if (!isOpen || !budget) return null;
 
     // Filter transaksi expense yang menargetkan budget ini
@@ -159,7 +159,7 @@ export const BudgetTransactionModal = ({ budget, transactions, onClose, isOpen }
                                                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-slate-600 dark:text-slate-500">
                                                     {date && <span>📅 {date}</span>}
                                                     {time && <><span>•</span><span>🕐 {time}</span></>}
-                                                    {t.user && <><span>•</span><span>👤 {t.user}</span></>}
+                                                    {t.user && <><span>•</span><span>👤 {getTransactionUserName(t, familyUsers)}</span></>}
                                                 </div>
 
                                                 {t.description && (

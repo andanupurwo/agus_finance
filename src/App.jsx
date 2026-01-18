@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db, auth, googleProvider } from './firebase';
-import { collection, onSnapshot, query, orderBy, deleteDoc, doc, getDocsFromServer, updateDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, deleteDoc, doc, getDocsFromServer, updateDoc, where } from 'firebase/firestore';
 import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
 import { Home as HomeIcon, LogOut } from 'lucide-react';
 import { Home } from './pages/Home';
@@ -31,6 +31,7 @@ export default function App() {
   const [wallets, setWallets] = useState([]);
   const [budgets, setBudgets] = useState([]);
   const [transactions, setTransactions] = useState([]);
+  const [familyUsers, setFamilyUsers] = useState({}); // For real-time user display name lookup
 
   // --- FORM STATE (HOME) ---
   const [nominal, setNominal] = useState('');
@@ -207,7 +208,26 @@ export default function App() {
     migrateOrderToFirestore();
   }, [firebaseUser?.uid, userData]);
 
-  // 3. ROLLOVER PROMPT (First day of month, one-time per month)
+  // 3. LOAD FAMILY USERS FOR REAL-TIME DISPLAY NAME LOOKUP
+  useEffect(() => {
+    if (!userData?.familyId) return;
+
+    const usersRef = collection(db, 'users');
+    const q = query(usersRef, where('familyId', '==', userData.familyId));
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const usersMap = {};
+      snapshot.forEach(docSnap => {
+        const data = docSnap.data();
+        usersMap[docSnap.id] = data.displayName || data.email;
+      });
+      setFamilyUsers(usersMap);
+    });
+
+    return () => unsubscribe();
+  }, [userData?.familyId]);
+
+  // 4. ROLLOVER PROMPT (First day of month, one-time per month)
   useEffect(() => {
     if (wallets.length === 0 || budgets.length === 0) return;
     const today = new Date();
@@ -270,6 +290,7 @@ export default function App() {
             familyId={userData?.familyId}
             currentUserId={firebaseUser?.uid}
             userData={userData}
+            familyUsers={familyUsers}
           />
         );
       case 'activity':
@@ -304,6 +325,7 @@ export default function App() {
             setEditingData={setEditingData}
             userData={userData}
             currentUserId={firebaseUser?.uid}
+            familyUsers={familyUsers}
           />
         );
       case 'settings':
