@@ -174,7 +174,10 @@ export const Settings = ({ wallets, budgets, transactions, setLoading, loading, 
                     </p>
                   </div>
                   <button
-                    onClick={() => setEditingName(true)}
+                    onClick={() => {
+                      setEditingName(true);
+                      setDisplayName(userData?.displayName || '');
+                    }}
                     className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 dark:hover:bg-blue-500 text-white rounded-lg text-xs font-medium transition-colors"
                   >
                     <Edit2 size={14} />
