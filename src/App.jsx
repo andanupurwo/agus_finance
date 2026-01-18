@@ -402,7 +402,7 @@ export default function App() {
                 <img
                   src="/pwa-192x192.png"
                   alt="Agus Finance Logo"
-                  className="w-36 h-36"
+                  className="w-36 h-36 rounded-3xl"
                 />
               </div>
 
