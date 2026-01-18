@@ -112,9 +112,9 @@ export const Activity = ({ transactions, wallets, budgets, handleDeleteTransacti
   };
 
   return (
-    <div className="space-y-4 animate-in fade-in duration-500 pb-20 px-1.5">
+    <div className="space-y-4 animate-in fade-in duration-500 pb-24 px-1.5">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-xl font-bold text-slate-900 dark:text-white">Riwayat</h2>
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Riwayat</h2>
         <div className="flex items-center gap-2">
           {filteredTransactions.length > 0 && (
             <button

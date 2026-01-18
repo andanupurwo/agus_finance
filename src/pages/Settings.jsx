@@ -99,7 +99,7 @@ export const Settings = ({ wallets, budgets, transactions, setLoading, loading, 
   }, [userData, editingName]);
 
   return (
-    <div className="space-y-4 animate-in fade-in duration-500 pb-20 px-1.5">
+    <div className="space-y-4 animate-in fade-in duration-500 pb-24 px-1.5">
       <div>
         <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-1">Settings</h2>
         <p className="text-xs text-slate-500 dark:text-slate-400">Kelola aplikasi dan panduan penggunaan</p>

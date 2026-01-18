@@ -100,7 +100,7 @@ export const Manage = ({
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500 pb-20 px-1.5">
+    <div className="space-y-4 animate-in fade-in duration-500 pb-24 px-1.5">
       {/* ACTION BUTTONS */}
       {!isReadOnly && (
         <div className="grid grid-cols-2 gap-3">

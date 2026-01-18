@@ -145,11 +145,11 @@ export const Home = ({
   };
 
   return (
-    <div className="space-y-3 animate-in fade-in duration-500 pb-20 px-1.5">
+    <div className="space-y-4 animate-in fade-in duration-500 pb-24 px-1.5">
       {/* BUDGET LIST (HORIZONTAL) */}
       <div>
         <div className="flex justify-between items-end mb-2">
-          <h2 className="text-base font-bold text-slate-900 dark:text-white">Budgets Aktif</h2>
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white">Budgets Aktif</h2>
           <span className="text-[10px] text-slate-600 dark:text-slate-500">Geser &rarr;</span>
         </div>
         {budgets.length === 0 ? (
@@ -322,7 +322,7 @@ export const Home = ({
       {/* RECENT TRANSACTIONS */}
       <div className="bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm transition-colors duration-300">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-bold text-slate-900 dark:text-white">Transaksi Terbaru</h3>
+          <h3 className="text-lg font-bold text-slate-900 dark:text-white">Transaksi Terbaru</h3>
           <span className="text-[10px] text-slate-500 dark:text-slate-400">5 terakhir</span>
         </div>
 
