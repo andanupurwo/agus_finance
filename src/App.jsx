@@ -7,12 +7,15 @@ import { Home } from './pages/Home';
 import { Activity } from './pages/Activity';
 import { Manage } from './pages/Manage';
 import { Settings } from './pages/Settings';
+import { Report } from './pages/Report';
 import { ClearCache } from './pages/ClearCache';
 import { BottomNav } from './components/BottomNav';
 import { Modal } from './components/Modal';
 import { Header } from './components/Header';
 import { Toast, ConfirmDialog } from './components/Toast';
+import { InstallPrompt } from './components/InstallPrompt';
 import { useTransactions } from './hooks/useTransactions';
+import { usePullToRefresh, PullToRefreshIndicator } from './hooks/usePullToRefresh.jsx';
 import { useTheme } from './context/ThemeContext';
 import { formatRupiah, parseRupiah } from './utils/formatter';
 import { cacheManager } from './utils/cacheManager';
@@ -26,7 +29,7 @@ export default function App() {
     // Check URL first for deep linking
     const params = new URLSearchParams(window.location.search);
     const urlTab = params.get('tab');
-    if (urlTab && ['home', 'activity', 'manage', 'settings'].includes(urlTab)) {
+    if (urlTab && ['home', 'activity', 'manage', 'report', 'settings'].includes(urlTab)) {
       return urlTab;
     }
     return localStorage.getItem('activeTab') || 'home';
@@ -112,6 +115,30 @@ export default function App() {
       setConfirm({ message, resolve });
     });
   };
+
+  // Pull to Refresh Handler
+  const handleRefresh = async () => {
+    if (!userData?.familyId) return;
+
+    try {
+      showToast('🔄 Refreshing data...', 'info');
+      const [wSnap, bSnap, tSnap] = await Promise.all([
+        getDocsFromServer(query(collection(db, 'wallets'), where('familyId', '==', userData.familyId), orderBy('createdAt'))),
+        getDocsFromServer(query(collection(db, 'budgets'), where('familyId', '==', userData.familyId), orderBy('createdAt'))),
+        getDocsFromServer(query(collection(db, 'transactions'), where('familyId', '==', userData.familyId), orderBy('createdAt', 'desc')))
+      ]);
+      setWallets(wSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setBudgets(bSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setTransactions(tSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      showToast('✓ Data refreshed!', 'success');
+    } catch (e) {
+      showToast(e.message || 'Failed to refresh', 'error');
+    }
+  };
+
+  // Enable pull to refresh
+  usePullToRefresh(handleRefresh);
+
 
   // Listen to Firebase Auth state
   useEffect(() => {
@@ -284,20 +311,34 @@ export default function App() {
     return () => unsubscribe();
   }, [userData?.familyId]);
 
-  // 4. ROLLOVER PROMPT (First day of month, one-time per month)
+  // 4. ROLLOVER PROMPT (Smart detection for month-end cleanup)
   useEffect(() => {
     if (wallets.length === 0 || budgets.length === 0) return;
     const today = new Date();
-    const isFirstOfMonth = today.getDate() === 1;
-    if (!isFirstOfMonth) return;
+
+    // Check if rollover was COMPLETED for this month
     const monthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-    const shownKey = localStorage.getItem('rolloverPromptShown');
-    if (shownKey === monthKey) return;
-    // Mark as shown to avoid repeated prompts this month
-    localStorage.setItem('rolloverPromptShown', monthKey);
-    // Open rollover modal for user to process
-    setShowModal('rollover');
-  }, [wallets, budgets]);
+    const completedKey = localStorage.getItem('rolloverCompleted');
+    if (completedKey === monthKey) return; // Already done this month
+
+    // Smart detection: Check if there are budgets with transactions from previous months
+    const hasPreviousMonthData = budgets.some(budget => {
+      const budgetTransactions = transactions.filter(t =>
+        t.type === 'expense' && t.targetId === budget.id
+      );
+      // Check if any transaction is from a different month
+      return budgetTransactions.some(t => {
+        if (!t.date) return false;
+        const txMonth = t.date.substring(0, 7); // YYYY-MM
+        return txMonth !== monthKey;
+      });
+    });
+
+    // Only show prompt if it's a new month AND there's data from previous months
+    if (hasPreviousMonthData) {
+      setShowModal('rollover');
+    }
+  }, [wallets, budgets, transactions]);
 
   // Calculate totals
   const walletTotal = wallets.reduce((acc, w) => acc + parseRupiah(w.amount), 0);
@@ -384,6 +425,14 @@ export default function App() {
             userData={userData}
             currentUserId={firebaseUser?.uid}
             familyUsers={familyUsers}
+          />
+        );
+      case 'report':
+        return (
+          <Report
+            transactions={transactions}
+            budgets={budgets}
+            wallets={wallets}
           />
         );
       case 'settings':
@@ -511,6 +560,12 @@ export default function App() {
   // Logged in - show app
   return (
     <div className="min-h-screen w-full max-w-none mx-auto relative font-sans transition-colors duration-300 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white">
+      {/* PWA Install Prompt */}
+      <InstallPrompt />
+
+      {/* Pull to Refresh Indicator */}
+      <PullToRefreshIndicator />
+
       {toast && (
         <Toast
           message={toast.message}

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Wallet, Plus, EyeOff, Trash2, Edit2 } from 'lucide-react';
 import { ArrowRightLeft } from 'lucide-react';
-import { parseRupiah, formatRupiah } from '../utils/formatter';
+import { parseRupiah, formatRupiah, isCurrentMonth } from '../utils/formatter';
 import { BudgetTransactionModal } from '../components/BudgetTransactionModal';
 import { saveBudgetOrder, saveWalletOrder } from '../utils/orderManager';
 
@@ -104,11 +104,39 @@ export const Manage = ({
       {/* ACTION BUTTONS */}
       {!isReadOnly && (
         <div className="grid grid-cols-2 gap-3">
-          <button onClick={() => setShowModal('transfer')} className="col-span-2 py-3 bg-blue-600 hover:bg-blue-700 dark:hover:bg-blue-500 rounded-xl font-bold text-white shadow-lg shadow-blue-600/40 dark:shadow-blue-900/40 flex items-center justify-center gap-2 transition-all">
-            <ArrowRightLeft size={18} /> Alokasi / Pindah Dana
+          <button onClick={() => setShowModal('transfer')} className="col-span-1 py-3 bg-blue-600 hover:bg-blue-700 dark:hover:bg-blue-500 rounded-xl font-bold text-white shadow-lg shadow-blue-600/40 dark:shadow-blue-900/40 flex items-center justify-center gap-2 transition-all">
+            <ArrowRightLeft size={18} /> Pindah Dana
+          </button>
+          <button
+            onClick={() => setShowModal('rollover')}
+            className="relative col-span-1 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl font-bold text-slate-700 dark:text-slate-200 shadow-sm flex items-center justify-center gap-2 transition-all"
+          >
+            <Trash2 size={18} /> Reset Budget
+            {(() => {
+              // Smart detection: count budgets with old transactions
+              const today = new Date();
+              const monthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+              const budgetsNeedingReset = budgets.filter(budget => {
+                const budgetTransactions = transactions.filter(t =>
+                  t.type === 'expense' && t.targetId === budget.id
+                );
+                return budgetTransactions.some(t => {
+                  if (!t.date) return false;
+                  const txMonth = t.date.substring(0, 7);
+                  return txMonth !== monthKey;
+                });
+              }).length;
+
+              return budgetsNeedingReset > 0 ? (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center animate-pulse">
+                  {budgetsNeedingReset}
+                </span>
+              ) : null;
+            })()}
           </button>
         </div>
       )}
+
 
       {/* WALLETS SECTION */}
       <div>
@@ -163,7 +191,7 @@ export const Manage = ({
       {/* BUDGETS SECTION */}
       <div>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold text-slate-900 dark:text-white">Budget (Anggaran) = Tersisa Rp {budgets.reduce((sum, b) => { const expenseTransactions = transactions.filter(t => t.type === 'expense' && t.targetId === b.id); const used = expenseTransactions.reduce((s, t) => s + parseRupiah(t.amount), 0); return sum + (parseRupiah(b.limit) - used); }, 0).toLocaleString('id-ID')}</h2>
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white">Budget (Anggaran) = Tersisa Rp {budgets.reduce((sum, b) => { const expenseTransactions = transactions.filter(t => t.type === 'expense' && t.targetId === b.id && isCurrentMonth(t.date)); const used = expenseTransactions.reduce((s, t) => s + parseRupiah(t.amount), 0); return sum + (parseRupiah(b.limit) - used); }, 0).toLocaleString('id-ID')}</h2>
           {!isReadOnly && <button onClick={() => setShowModal('addBudget')} className="p-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 transition-colors duration-300"><Plus size={16} /></button>}
         </div>
         {budgets.length === 0 ? (
@@ -171,9 +199,9 @@ export const Manage = ({
         ) : (
           <div className="space-y-3">
             {orderedBudgets.map((b) => {
-              // Hitung total pengeluaran dari transaksi yang menargetkan budget ini
+              // Hitung total pengeluaran dari transaksi yang menargetkan budget ini (Hanya bulan ini)
               const expenseTransactions = transactions.filter(t =>
-                t.type === 'expense' && t.targetId === b.id
+                t.type === 'expense' && t.targetId === b.id && isCurrentMonth(t.date)
               );
               const totalExpense = expenseTransactions.reduce((sum, t) =>
                 sum + parseRupiah(t.amount), 0
@@ -279,6 +307,6 @@ export const Manage = ({
         }}
         familyUsers={familyUsers}
       />
-    </div>
+    </div >
   );
 };

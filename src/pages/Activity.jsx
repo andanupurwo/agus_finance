@@ -21,6 +21,14 @@ export const Activity = ({ transactions, wallets, budgets, handleDeleteTransacti
   // Get unique months from transactions
   const availableMonths = useMemo(() => {
     const months = new Set();
+    
+    // Always include current month and selected month to ensure they appear in dropdown
+    // even if there are no transactions for them yet
+    const today = new Date();
+    const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    months.add(currentMonth);
+    months.add(selectedMonth);
+
     transactions.forEach(t => {
       if (t.date) {
         const month = t.date.substring(0, 7); // YYYY-MM
@@ -35,7 +43,7 @@ export const Activity = ({ transactions, wallets, budgets, handleDeleteTransacti
 
     // Sort months descending (newest first)
     return Array.from(months).sort().reverse();
-  }, [transactions]);
+  }, [transactions, selectedMonth]);
 
   // Filter transactions by selected month and type
   const filteredTransactions = useMemo(() => {

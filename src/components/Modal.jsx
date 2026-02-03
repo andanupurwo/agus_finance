@@ -1,13 +1,13 @@
 import React from 'react';
 import { X } from 'lucide-react';
 import { useTransactions } from '../hooks/useTransactions';
-import { parseRupiah, formatRupiah } from '../utils/formatter';
+import { parseRupiah, formatRupiah, isCurrentMonth } from '../utils/formatter';
 
 // Helper: Hitung sisa budget (limit - expenses)
 const calculateBudgetRemaining = (budget, transactions) => {
   if (!budget.limit) return 0;
   const used = transactions
-    .filter(t => t.type === 'expense' && t.targetId === budget.id)
+    .filter(t => t.type === 'expense' && t.targetId === budget.id && isCurrentMonth(t.date))
     .reduce((sum, t) => sum + parseRupiah(t.amount), 0);
   return parseRupiah(budget.limit) - used;
 };
@@ -92,23 +92,23 @@ export const Modal = ({
             {showModal === 'transfer'
               ? 'Alokasi / Pindah Dana'
               : showModal === 'rollover'
-              ? 'Rollover Budget ke Wallet'
-              : showModal === 'addWallet'
-              ? 'Buat Wallet Baru'
-              : showModal === 'addBudget'
-              ? 'Buat Budget Baru'
-              : showModal === 'editWallet'
-              ? 'Edit Wallet'
-              : 'Edit Budget'}
+                ? 'Rollover Budget ke Wallet'
+                : showModal === 'addWallet'
+                  ? 'Buat Wallet Baru'
+                  : showModal === 'addBudget'
+                    ? 'Buat Budget Baru'
+                    : showModal === 'editWallet'
+                      ? 'Edit Wallet'
+                      : 'Edit Budget'}
           </h3>
-          <button onClick={() => setShowModal(null)}><X size={20} className="text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"/></button>
+          <button onClick={() => setShowModal(null)}><X size={20} className="text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors" /></button>
         </div>
 
         {showModal === 'transfer' ? (
           <div className="space-y-4">
             <div>
               <label className="text-xs text-slate-600 dark:text-slate-400 block mb-1">Dari (Sumber)</label>
-              <select className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white p-3 rounded-xl text-sm focus:border-blue-500 dark:focus:border-blue-400 outline-none transition-colors duration-300" value={transferData.fromId} onChange={e => setTransferData({...transferData, fromId: e.target.value})}>
+              <select className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white p-3 rounded-xl text-sm focus:border-blue-500 dark:focus:border-blue-400 outline-none transition-colors duration-300" value={transferData.fromId} onChange={e => setTransferData({ ...transferData, fromId: e.target.value })}>
                 <option value="">Pilih Sumber</option>
                 <optgroup label="Wallets">{wallets.map(w => <option key={w.id} value={w.id}>{w.name} (Rp {w.amount})</option>)}</optgroup>
                 <optgroup label="Budgets">{budgets.map(b => <option key={b.id} value={b.id}>{b.name} (Sisa: Rp {getDisplayAmount(b, false, transactions)})</option>)}</optgroup>
@@ -116,7 +116,7 @@ export const Modal = ({
             </div>
             <div>
               <label className="text-xs text-slate-600 dark:text-slate-400 block mb-1">Ke (Tujuan)</label>
-              <select className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white p-3 rounded-xl text-sm focus:border-blue-500 dark:focus:border-blue-400 outline-none transition-colors duration-300 disabled:opacity-50" value={transferData.toId} onChange={e => setTransferData({...transferData, toId: e.target.value})} disabled={!transferData.fromId}>
+              <select className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white p-3 rounded-xl text-sm focus:border-blue-500 dark:focus:border-blue-400 outline-none transition-colors duration-300 disabled:opacity-50" value={transferData.toId} onChange={e => setTransferData({ ...transferData, toId: e.target.value })} disabled={!transferData.fromId}>
                 <option value="">Pilih Tujuan</option>
                 {sourceType !== 'budget' && (
                   <optgroup label="Wallets">{wallets.map(w => <option key={w.id} value={w.id} disabled={w.id === transferData.fromId}>{w.name} (Rp {w.amount})</option>)}</optgroup>
@@ -129,7 +129,7 @@ export const Modal = ({
             </div>
             <div>
               <label className="text-xs text-slate-600 dark:text-slate-400 block mb-1">Nominal</label>
-              <input type="text" className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white p-3 rounded-xl text-sm font-bold placeholder-slate-500 dark:placeholder-slate-600 focus:border-blue-500 dark:focus:border-blue-400 outline-none transition-colors duration-300" placeholder="0" value={transferData.amount} onChange={e => handleNominalInput(e, val => setTransferData({...transferData, amount: val}))} />
+              <input type="text" className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white p-3 rounded-xl text-sm font-bold placeholder-slate-500 dark:placeholder-slate-600 focus:border-blue-500 dark:focus:border-blue-400 outline-none transition-colors duration-300" placeholder="0" value={transferData.amount} onChange={e => handleNominalInput(e, val => setTransferData({ ...transferData, amount: val }))} />
             </div>
             <button onClick={() => handleTransfer(transferData, wallets, budgets, transactions, setTransferData, setShowModal, user, setLoading, familyId, currentUserId)} disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700 dark:hover:bg-blue-500 py-3 rounded-xl font-bold text-white mt-2 transition-all disabled:opacity-50">Proses Alokasi</button>
           </div>
@@ -139,7 +139,7 @@ export const Modal = ({
             <div className="max-h-80 overflow-y-auto space-y-3 pr-1">
               {budgets.map(b => {
                 const used = transactions
-                  .filter(t => t.type === 'expense' && t.targetId === b.id)
+                  .filter(t => t.type === 'expense' && t.targetId === b.id && isCurrentMonth(t.date))
                   .reduce((sum, t) => sum + parseRupiah(t.amount), 0);
                 const remaining = Math.max(0, parseRupiah(b.limit || '0') - used);
                 const selectedWalletId = rolloverSelections[b.id] || '';
@@ -172,6 +172,12 @@ export const Modal = ({
                   .map(b => ({ budgetId: b.id, walletId: rolloverSelections[b.id] }))
                   .filter(p => !!p.walletId);
                 handleRollover(plans, wallets, budgets, transactions, user, setLoading, familyId, currentUserId);
+
+                // Mark rollover as completed for this month
+                const today = new Date();
+                const monthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+                localStorage.setItem('rolloverCompleted', monthKey);
+
                 setShowModal(null);
               }}
               disabled={loading || wallets.length === 0}
@@ -184,11 +190,11 @@ export const Modal = ({
           <div className="space-y-4">
             <div>
               <label className="text-xs text-slate-600 dark:text-slate-400 block mb-2">Nama</label>
-              <input type="text" placeholder="Nama" className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-600 p-3 rounded-xl text-sm focus:border-blue-500 dark:focus:border-blue-400 outline-none transition-colors duration-300" value={editingData.name} onChange={e => setEditingData({...editingData, name: e.target.value})} />
+              <input type="text" placeholder="Nama" className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-600 p-3 rounded-xl text-sm focus:border-blue-500 dark:focus:border-blue-400 outline-none transition-colors duration-300" value={editingData.name} onChange={e => setEditingData({ ...editingData, name: e.target.value })} />
             </div>
             <div>
               <label className="text-xs text-slate-600 dark:text-slate-400 block mb-2">Deskripsi</label>
-              <input type="text" placeholder="Deskripsi" className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-600 p-3 rounded-xl text-sm focus:border-blue-500 dark:focus:border-blue-400 outline-none transition-colors duration-300" value={editingData.description || ''} onChange={e => setEditingData({...editingData, description: e.target.value})} />
+              <input type="text" placeholder="Deskripsi" className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-600 p-3 rounded-xl text-sm focus:border-blue-500 dark:focus:border-blue-400 outline-none transition-colors duration-300" value={editingData.description || ''} onChange={e => setEditingData({ ...editingData, description: e.target.value })} />
             </div>
             {showModal === 'editWallet' && (
               <div>
@@ -197,7 +203,7 @@ export const Modal = ({
                   {WALLET_COLORS.map(color => (
                     <button
                       key={color.value}
-                      onClick={() => setEditingData({...editingData, color: color.value})}
+                      onClick={() => setEditingData({ ...editingData, color: color.value })}
                       style={{ backgroundColor: color.value }}
                       className={`w-full h-10 rounded-lg transition-all ${editingData.color === color.value ? 'ring-2 ring-offset-2 ring-blue-500 dark:ring-offset-slate-900' : 'opacity-70 hover:opacity-100'}`}
                       title={color.name}
@@ -210,8 +216,8 @@ export const Modal = ({
           </div>
         ) : (
           <div className="space-y-4">
-            <input type="text" placeholder="Nama (mis: Tabungan, Makan)" className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-600 p-3 rounded-xl text-sm focus:border-blue-500 dark:focus:border-blue-400 outline-none transition-colors duration-300" value={newData.name} onChange={e => setNewData({...newData, name: e.target.value})} />
-            <input type="text" placeholder="Deskripsi (mis: Cash, Muamalat, Seabank)" className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-600 p-3 rounded-xl text-sm focus:border-blue-500 dark:focus:border-blue-400 outline-none transition-colors duration-300" value={newData.description || ''} onChange={e => setNewData({...newData, description: e.target.value})} />
+            <input type="text" placeholder="Nama (mis: Tabungan, Makan)" className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-600 p-3 rounded-xl text-sm focus:border-blue-500 dark:focus:border-blue-400 outline-none transition-colors duration-300" value={newData.name} onChange={e => setNewData({ ...newData, name: e.target.value })} />
+            <input type="text" placeholder="Deskripsi (mis: Cash, Muamalat, Seabank)" className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-600 p-3 rounded-xl text-sm focus:border-blue-500 dark:focus:border-blue-400 outline-none transition-colors duration-300" value={newData.description || ''} onChange={e => setNewData({ ...newData, description: e.target.value })} />
             {showModal === 'addWallet' && (
               <div>
                 <label className="text-xs text-slate-600 dark:text-slate-400 block mb-2">Warna Wallet</label>
@@ -219,7 +225,7 @@ export const Modal = ({
                   {WALLET_COLORS.map(color => (
                     <button
                       key={color.value}
-                      onClick={() => setNewData({...newData, color: color.value})}
+                      onClick={() => setNewData({ ...newData, color: color.value })}
                       style={{ backgroundColor: color.value }}
                       className={`w-full h-10 rounded-lg transition-all ${newData.color === color.value ? 'ring-2 ring-offset-2 ring-blue-500 dark:ring-offset-slate-900' : 'opacity-70 hover:opacity-100'}`}
                       title={color.name}

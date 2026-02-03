@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { ArrowDownCircle, ArrowUpCircle, ArrowDownRight, ArrowUpRight, ArrowRightLeft } from 'lucide-react';
 import { parseRupiah, formatRupiah, isCurrentMonth, getMonthRange, getTransactionUserName } from '../utils/formatter';
 import { useTransactions } from '../hooks/useTransactions';
-import { Summary } from '../components/Summary';
+
 import { BudgetTransactionModal } from '../components/BudgetTransactionModal';
 import { saveBudgetOrder } from '../utils/orderManager';
 
@@ -333,6 +333,7 @@ export const Home = ({
         ) : (
           <div className="space-y-2">
             {[...transactions]
+              .filter(t => isCurrentMonth(t.date)) // Filter: hanya transaksi bulan berjalan
               .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
               .slice(0, 5)
               .map((t) => {

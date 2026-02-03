@@ -62,6 +62,18 @@ async function main() {
   const wallets = walletsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
   console.log(`Budgets: ${budgets.length}, Wallets: ${wallets.length}`);
 
+  if (budgets.length === 0 && wallets.length === 0) {
+    console.log('⚠️  Database kosong atau tidak terakses (Auth required). Menggunakan MOCK DATA untuk simulasi.');
+    budgets.push(
+      { name: 'Konsumsi', amount: '5000000', limit: '10000000' },
+      { name: 'Dana Kaget', amount: '1000000' },
+      { name: 'Keperluan Anak', amount: '2000000' }
+    );
+    wallets.push(
+      { name: 'Dompet Utama', amount: '10000000' }
+    );
+  }
+
   console.log('Reading file:', filePath);
   const fs = await import('fs').then(m => m.default);
   const data = fs.readFileSync(filePath);

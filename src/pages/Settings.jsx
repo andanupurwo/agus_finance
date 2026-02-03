@@ -450,6 +450,28 @@ export const Settings = ({ wallets, budgets, transactions, setLoading, loading, 
               </p>
             </div>
 
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold">6</span>
+                <h4 className="font-bold text-slate-900 dark:text-white">Reset Budget Bulanan (Rollover)</h4>
+              </div>
+              <p className="text-sm text-slate-700 dark:text-slate-300 ml-8 mb-2">
+                Setiap awal bulan, aplikasi akan menampilkan prompt untuk mereset budget. Atau Anda bisa manual klik <strong>Reset Budget</strong> di menu <strong>Manage</strong>.
+              </p>
+              <div className="ml-8 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 text-xs text-blue-900 dark:text-blue-300 space-y-1">
+                <p><strong>📅 Siklus Bulanan:</strong></p>
+                <ol className="list-decimal list-inside space-y-1 ml-2">
+                  <li><strong>Awal Bulan Baru</strong>: Popup "Reset Budget" muncul otomatis</li>
+                  <li><strong>Proses Rollover</strong>: Sisa budget bulan lalu dikembalikan ke Wallet</li>
+                  <li><strong>Budget Dihapus</strong>: Semua budget lama terhapus otomatis</li>
+                  <li><strong>Buat Budget Baru</strong>: Buat kategori budget baru untuk bulan ini</li>
+                  <li><strong>Top Up Budget</strong>: Alokasikan dana dari Wallet ke budget baru</li>
+                  <li><strong>Transaksi Normal</strong>: Catat pengeluaran seperti biasa</li>
+                </ol>
+                <p className="mt-2"><strong>💡 Catatan:</strong> Wallet tetap ada selamanya. Yang direset hanya Budget setiap bulan.</p>
+              </div>
+            </div>
+
             <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl p-3 mt-4">
               <p className="text-xs text-emerald-900 dark:text-emerald-300">
                 <strong>💡 Tips:</strong> Data disimpan secara real-time di cloud. Edit nama wallet/budget dengan klik tombol ✏️. Hanya bisa hapus kategori jika saldo = 0. Tema mengikuti pengaturan sistem HP Anda.

@@ -14,7 +14,7 @@ import { formatRupiah, parseRupiah, isCurrentMonth } from '../utils/formatter';
  */
 const calculateBudgetUsed = (budgetId, transactions) => {
   return transactions
-    .filter(t => t.type === 'expense' && t.targetId === budgetId)
+    .filter(t => t.type === 'expense' && t.targetId === budgetId && isCurrentMonth(t.date))
     .reduce((sum, t) => sum + parseRupiah(t.amount), 0);
 };
 
@@ -58,46 +58,57 @@ export const useTransactions = (showToast, showConfirm) => {
         const wallet = wallets.find(w => w.id === plan.walletId);
         if (!budget || !wallet) continue;
 
-        // Hitung sisa budget yang valid (>= 1)
-        const used = calculateBudgetUsed(budget.id, transactions || []);
-        const remaining = calculateBudgetRemaining(budget, used);
-        const amountVal = Math.max(0, remaining);
-        if (amountVal <= 0) continue; // skip jika tidak ada sisa
+        // LOGIC ROLLOVER KHUSUS:
+        // Kita harus menghitung 'Real Remaining' dari total limit dikurangi TOTAL usage (seumur hidup budget).
+        // Karena calculateBudgetUsed biasa sekarang difilter per bulan (untuk view), 
+        // kita perlu hitung manual di sini agar sisa bulan lalu terdeteksi akurat.
 
-        // Kurangi limit budget (mengembalikan sisa)
+        const allTimeUsed = transactions
+          .filter(t => t.type === 'expense' && t.targetId === budget.id)
+          .reduce((sum, t) => sum + parseRupiah(t.amount), 0);
+
         const currentLimit = parseRupiah(budget.limit || '0');
-        const newLimit = Math.max(0, currentLimit - amountVal);
-        await updateDoc(doc(db, 'budgets', budget.id), { limit: formatRupiah(newLimit) });
+        const remaining = currentLimit - allTimeUsed; // Sisa 'nyata' dari bulan lalu
 
-        // Tambahkan ke wallet
-        const currentWalletAmount = parseRupiah(wallet.amount || '0');
-        await updateDoc(doc(db, 'wallets', wallet.id), { amount: formatRupiah(currentWalletAmount + amountVal) });
+        const amountVal = Math.max(0, remaining);
 
-        // Catat transaksi rollover (transfer)
-        await addDoc(collection(db, 'transactions'), {
-          title: 'Rollover Budget',
-          amount: formatRupiah(amountVal),
-          type: 'transfer',
-          user: user,
-          createdBy: currentUserId,
-          familyId,
-          time: new Date().toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'}),
-          target: `${budget.name} → ${wallet.name}`,
-          fromId: budget.id,
-          toId: wallet.id,
-          fromType: 'budget',
-          toType: 'wallet',
-          createdAt: Date.now()
-        });
+        // 1. (Dibatalkan) Reset Limit Budget jadi 0 (Clean slate buat bulan baru)
+        // await updateDoc(doc(db, 'budgets', budget.id), { limit: '0' });
+
+        if (amountVal > 0) {
+          // 2. Kembalikan sisa ke wallet (jika ada)
+          const currentWalletAmount = parseRupiah(wallet.amount || '0');
+          await updateDoc(doc(db, 'wallets', wallet.id), { amount: formatRupiah(currentWalletAmount + amountVal) });
+
+          // 3. Catat transaksi rollover
+          const today = new Date();
+          const dateStr = today.toISOString().split('T')[0]; // YYYY-MM-DD
+
+          await addDoc(collection(db, 'transactions'), {
+            title: `Rollover & Hapus Budget (${budget.name})`,
+            amount: formatRupiah(amountVal),
+            type: 'transfer',
+            user: user,
+            createdBy: currentUserId,
+            familyId,
+            time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+            date: dateStr,
+            target: `${budget.name} → ${wallet.name}`,
+            fromId: budget.id,
+            toId: wallet.id,
+            fromType: 'budget',
+            toType: 'wallet',
+            createdAt: Date.now()
+          });
+        }
+
+        // 4. HAPUS BUDGET SEPENUHNYA
+        await deleteDoc(doc(db, 'budgets', budget.id));
 
         processed += 1;
       }
 
-      if (processed > 0) {
-        showToast?.(`Rollover selesai: ${processed} budget diproses`, 'success');
-      } else {
-        showToast?.('Tidak ada sisa budget untuk diproses', 'info');
-      }
+      showToast?.(`Rollover selesai! Budget lama telah dihapus.`, 'success');
     } catch (e) {
       showToast?.(e.message || 'Gagal memproses rollover', 'error');
     }
@@ -124,18 +135,18 @@ export const useTransactions = (showToast, showConfirm) => {
       showToast?.("Nominal harus diisi!", "error");
       return;
     }
-    
+
     if (!selectedTarget) {
       showToast?.("Silakan pilih target terlebih dahulu", "error");
       return;
     }
-    
+
     // Validasi tanggal harus di bulan berjalan
     if (!isCurrentMonth(transactionDate)) {
       showToast?.("⚠️ Transaksi hanya dapat dibuat untuk bulan berjalan saja!", "error");
       return;
     }
-    
+
     if (!familyId) {
       showToast?.('Family belum siap. Silakan relogin.', 'error');
       return;
@@ -143,7 +154,7 @@ export const useTransactions = (showToast, showConfirm) => {
 
     setLoading(true);
     const amountVal = parseRupiah(nominal);
-    const timeNow = new Date().toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'});
+    const timeNow = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
 
     try {
       let targetName = '';
@@ -161,11 +172,11 @@ export const useTransactions = (showToast, showConfirm) => {
         if (!targetBudget) throw new Error('Budget tidak ditemukan');
         targetName = targetBudget.name;
         targetType = 'budget';
-        
+
         // PERBAIKAN: Hitung sisa budget dari transaksi, bukan dari field amount
         const used = calculateBudgetUsed(selectedTarget, transactions || []);
         const remaining = calculateBudgetRemaining(targetBudget, used);
-        
+
         if (remaining < amountVal) {
           const kurang = amountVal - remaining;
           showToast?.(
@@ -194,7 +205,7 @@ export const useTransactions = (showToast, showConfirm) => {
 
       setNominal(''); setDescription(''); setSelectedTarget('');
       showToast?.("Transaksi Berhasil!", "success");
-    } catch (e) { 
+    } catch (e) {
       showToast?.(e.message, "error");
     }
     setLoading(false);
@@ -225,16 +236,16 @@ export const useTransactions = (showToast, showConfirm) => {
     setLoading(true);
 
     const amountVal = parseRupiah(amount);
-    
+
     try {
       // DETERMINE SOURCE (Wallet atau Budget)
       const isSourceWallet = wallets.some(w => w.id === fromId);
-      const sourceData = isSourceWallet 
+      const sourceData = isSourceWallet
         ? wallets.find(w => w.id === fromId)
         : budgets.find(b => b.id === fromId);
-      
+
       if (!sourceData) throw new Error('Sumber tidak ditemukan');
-      
+
       // Validasi saldo sumber cukup
       let sourceAvailable;
       if (isSourceWallet) {
@@ -245,8 +256,8 @@ export const useTransactions = (showToast, showConfirm) => {
         sourceAvailable = calculateBudgetRemaining(sourceData, used);
       }
 
-      if (sourceAvailable < amountVal) { 
-        setLoading(false); 
+      if (sourceAvailable < amountVal) {
+        setLoading(false);
         showToast?.("Saldo sumber tidak cukup!", "error");
         return;
       }
@@ -256,7 +267,7 @@ export const useTransactions = (showToast, showConfirm) => {
       const destData = isDestWallet
         ? wallets.find(w => w.id === toId)
         : budgets.find(b => b.id === toId);
-      
+
       if (!destData) throw new Error('Tujuan tidak ditemukan');
 
       // UPDATE SUMBER
@@ -268,7 +279,7 @@ export const useTransactions = (showToast, showConfirm) => {
         const currentSourceLimit = parseRupiah(sourceData.limit || '0');
         await updateDoc(doc(db, 'budgets', fromId), { limit: formatRupiah(Math.max(0, currentSourceLimit - amountVal)) });
       }
-      
+
       // UPDATE TUJUAN
       if (isDestWallet) {
         const destAmount = parseRupiah(destData.amount || '0');
@@ -278,10 +289,13 @@ export const useTransactions = (showToast, showConfirm) => {
         const currentDestLimit = parseRupiah(destData.limit || '0');
         await updateDoc(doc(db, 'budgets', toId), { limit: formatRupiah(currentDestLimit + amountVal) });
       }
-      
+
       // Catatan: pengurangan limit sumber untuk budget telah dilakukan di atas
-      
+
       // Catat transaksi transfer
+      const today = new Date();
+      const dateStr = today.toISOString().split('T')[0]; // YYYY-MM-DD
+
       await addDoc(collection(db, "transactions"), {
         title: "Alokasi Dana",
         amount: amount,
@@ -289,7 +303,8 @@ export const useTransactions = (showToast, showConfirm) => {
         user: user,
         createdBy: currentUserId,
         familyId,
-        time: new Date().toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'}),
+        time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+        date: dateStr,
         target: `${sourceData.name} → ${destData.name}`,
         fromId,
         toId,
@@ -297,10 +312,10 @@ export const useTransactions = (showToast, showConfirm) => {
         toType: isDestWallet ? 'wallet' : 'budget',
         createdAt: Date.now()
       });
-      setShowModal(null); 
+      setShowModal(null);
       setTransferData({ fromId: '', toId: '', amount: '' });
       showToast?.("Transfer Berhasil!", "success");
-    } catch (e) { 
+    } catch (e) {
       showToast?.(e.message, "error");
     }
     setLoading(false);
@@ -346,35 +361,35 @@ export const useTransactions = (showToast, showConfirm) => {
 
     setLoading(true);
     try {
-        if (showModal === 'addWallet') {
-            await addDoc(collection(db, "wallets"), {
-                name: newData.name.trim(),
-                description: newData.description || '',
-                amount: '0',
-                type: 'Rekening',
-                color: newData.color || 'from-slate-800 to-slate-900 border-slate-700',
+      if (showModal === 'addWallet') {
+        await addDoc(collection(db, "wallets"), {
+          name: newData.name.trim(),
+          description: newData.description || '',
+          amount: '0',
+          type: 'Rekening',
+          color: newData.color || 'from-slate-800 to-slate-900 border-slate-700',
           familyId,
           createdBy: currentUserId,
           createdByEmail: currentUserEmail,
           createdAt: Date.now()
-            });
-        } else {
-            await addDoc(collection(db, "budgets"), {
-                name: newData.name.trim(),
-                description: newData.description || '',
-                amount: '0',
-                limit: '0',
-                color: 'bg-slate-800 text-slate-200 border border-slate-700',
-                bar: 'bg-blue-500',
+        });
+      } else {
+        await addDoc(collection(db, "budgets"), {
+          name: newData.name.trim(),
+          description: newData.description || '',
+          amount: '0',
+          limit: '0',
+          color: 'bg-slate-800 text-slate-200 border border-slate-700',
+          bar: 'bg-blue-500',
           familyId,
           createdBy: currentUserId,
           createdByEmail: currentUserEmail,
           createdAt: Date.now()
-            });
-        }
-        setShowModal(null); setNewData({name: '', limit: '', description: ''});
-        showToast?.("Berhasil dibuat!", "success");
-    } catch (e) { 
+        });
+      }
+      setShowModal(null); setNewData({ name: '', limit: '', description: '' });
+      showToast?.("Berhasil dibuat!", "success");
+    } catch (e) {
       showToast?.(e.message, "error");
     }
     setLoading(false);
@@ -404,26 +419,26 @@ export const useTransactions = (showToast, showConfirm) => {
   };
 
   const handleDelete = async (collectionName, id) => {
-      const confirmed = await showConfirm?.("Hapus item ini? Saldo di dalamnya akan hilang.");
-      if(!confirmed) return;
+    const confirmed = await showConfirm?.("Hapus item ini? Saldo di dalamnya akan hilang.");
+    if (!confirmed) return;
 
-      // Safety: block delete if still has saldo/limit
-      const snapshot = await getDoc(doc(db, collectionName, id));
-      if (!snapshot.exists()) {
-        showToast?.("Item tidak ditemukan", "error");
-        return;
-      }
-      const data = snapshot.data() || {};
-      const amountVal = parseRupiah(data.amount || '0');
-      const limitVal = parseRupiah(data.limit || '0');
+    // Safety: block delete if still has saldo/limit
+    const snapshot = await getDoc(doc(db, collectionName, id));
+    if (!snapshot.exists()) {
+      showToast?.("Item tidak ditemukan", "error");
+      return;
+    }
+    const data = snapshot.data() || {};
+    const amountVal = parseRupiah(data.amount || '0');
+    const limitVal = parseRupiah(data.limit || '0');
 
-      if (amountVal > 0 || limitVal > 0) {
-        showToast?.("Tidak bisa hapus: saldo atau limit masih ada. Kosongkan lewat transaksi/transfer dulu.", "error");
-        return;
-      }
+    if (amountVal > 0 || limitVal > 0) {
+      showToast?.("Tidak bisa hapus: saldo atau limit masih ada. Kosongkan lewat transaksi/transfer dulu.", "error");
+      return;
+    }
 
-      await deleteDoc(doc(db, collectionName, id));
-      showToast?.("Item berhasil dihapus", "success");
+    await deleteDoc(doc(db, collectionName, id));
+    showToast?.("Item berhasil dihapus", "success");
   }
 
   const handleDeleteTransaction = async (tx, wallets, budgets, transactions) => {
@@ -447,11 +462,11 @@ export const useTransactions = (showToast, showConfirm) => {
         // Hapus transfer: reverse the changes
         const isFromWallet = (tx.fromType === 'wallet' || tx.fromType === 'wallets');
         const isToWallet = (tx.toType === 'wallet' || tx.toType === 'wallets');
-        
+
         const fromEntity = isFromWallet
           ? wallets.find(w => w.id === tx.fromId)
           : budgets.find(b => b.id === tx.fromId);
-        
+
         const toEntity = isToWallet
           ? wallets.find(w => w.id === tx.toId)
           : budgets.find(b => b.id === tx.toId);
