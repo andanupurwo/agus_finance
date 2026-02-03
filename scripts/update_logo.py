@@ -9,8 +9,9 @@ import sys
 import shutil
 from PIL import Image
 
-PROJECT_PATH = "/Users/purwo/My Project/agus-finance"
-PUBLIC_PATH = f"{PROJECT_PATH}/public"
+# Get the project root assuming script is in scripts/ folder
+PROJECT_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PUBLIC_PATH = os.path.join(PROJECT_PATH, "public")
 
 def convert_to_pwa_icons(input_file):
     """Convert image to PWA icon sizes with proper formatting"""

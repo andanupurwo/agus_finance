@@ -5,12 +5,12 @@ import { formatRupiah, parseRupiah, isCurrentMonth } from '../src/utils/formatte
 
 // Load firebase config from src/firebase.js indirectly (hardcode to avoid bundling ESM issues)
 const firebaseConfig = {
-  apiKey: "AIzaSyDwnbGY076oONW1ny2yhOt9pdIJkdLLEfM",
-  authDomain: "latihan-crud-sederhana.firebaseapp.com",
-  projectId: "latihan-crud-sederhana",
-  storageBucket: "latihan-crud-sederhana.firebasestorage.app",
-  messagingSenderId: "1335762286",
-  appId: "1:1335762286:web:2209cf10c5baa5218b357f"
+  apiKey: "AIzaSyB-PFJCpKjfvVP-3SomZn_NW5jQjRUJhgQ",
+  authDomain: "agus-finance.firebaseapp.com",
+  projectId: "agus-finance",
+  storageBucket: "agus-finance.firebasestorage.app",
+  messagingSenderId: "342544135388",
+  appId: "1:342544135388:web:5976177269c17e7ea9f019"
 };
 
 const app = initializeApp(firebaseConfig);
