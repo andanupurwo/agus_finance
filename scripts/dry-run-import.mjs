@@ -3,14 +3,20 @@ import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, getDocs } from 'firebase/firestore';
 import { formatRupiah, parseRupiah, isCurrentMonth } from '../src/utils/formatter.js';
 
-// Load firebase config from src/firebase.js indirectly (hardcode to avoid bundling ESM issues)
+import dotenv from 'dotenv';
+dotenv.config();
+
+const environment = process.env.VITE_ENVIRONMENT || 'prod';
+const suffix = environment.toUpperCase();
+
+// Load firebase config from environment variables
 const firebaseConfig = {
-  apiKey: "AIzaSyB-PFJCpKjfvVP-3SomZn_NW5jQjRUJhgQ",
-  authDomain: "agus-finance.firebaseapp.com",
-  projectId: "agus-finance",
-  storageBucket: "agus-finance.firebasestorage.app",
-  messagingSenderId: "342544135388",
-  appId: "1:342544135388:web:5976177269c17e7ea9f019"
+  apiKey: process.env[`VITE_FIREBASE_API_KEY_${suffix}`],
+  authDomain: process.env[`VITE_FIREBASE_AUTH_DOMAIN_${suffix}`],
+  projectId: process.env[`VITE_FIREBASE_PROJECT_ID_${suffix}`],
+  storageBucket: process.env[`VITE_FIREBASE_STORAGE_BUCKET_${suffix}`],
+  messagingSenderId: process.env[`VITE_FIREBASE_MESSAGING_SENDER_ID_${suffix}`],
+  appId: process.env[`VITE_FIREBASE_APP_ID_${suffix}`]
 };
 
 const app = initializeApp(firebaseConfig);
