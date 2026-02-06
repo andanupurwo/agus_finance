@@ -1,11 +1,11 @@
-# 🍎 Cara Install Jarvis di Mac (zsh) - VERSI V2 (SYNC)
+# 🍎 Cara Install Jarvis di Mac (zsh) - VERSI V3 (AUTO-MSG)
 
 1.  Buka Terminal.
 2.  Buka file config zsh dengan perintah:
     ```bash
     nano ~/.zshrc
     ```
-3.  Scroll ke paling bawah, hapus kode Jarvis lama (jika ada), lalu Paste kode baru ini:
+3.  Hapus kode Jarvis lama, ganti dengan yang baru (fitur auto-message):
 
     ```bash
     # -------------------------------------------
@@ -22,16 +22,18 @@
     }
 
     # 2. jarvis-out: Pulang kerja (Simpan & Push ke update)
+    # Jika lupa kasih pesan, otomatis pakai Timestamp.
     function jarvis-out() {
-        if [ -z "$1" ]; then
-            echo "❌ Error: Please provide a commit message."
-            echo "Usage: jarvis-out \"your message here\""
-        else
-            git add .
-            git commit -m "$1"
-            git push origin update
-            echo "✅ Work saved and pushed to 'update'! Safe to go home."
+        local msg="$1"
+        if [ -z "$msg" ]; then
+            msg="Auto-save: $(date '+%Y-%m-%d %H:%M:%S')"
+            echo "⚠️ No message provided. Using default: '$msg'"
         fi
+
+        git add .
+        git commit -m "$msg"
+        git push origin update
+        echo "✅ Work saved and pushed to 'update'! Safe to go home."
     }
 
     # 3. jarvis-merge: Rilis fitur (Merge Update -> Main)

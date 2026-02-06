@@ -1,8 +1,8 @@
-# 🪟 Cara Install Jarvis di Windows (PowerShell) - VERSI V2 (SYNC)
+# 🪟 Cara Install Jarvis di Windows (PowerShell) - VERSI V3 (AUTO-MSG)
 
 1.  Buka PowerShell.
 2.  Buka file profil: `notepad $PROFILE`
-3.  Hapus kode lama, ganti dengan yang baru ini:
+3.  Hapus kode lama, ganti dengan versi Auto-Message ini:
 
     ```powershell
     # -------------------------------------------
@@ -19,13 +19,17 @@
     }
 
     # 2. jarvis-out: Pulang kerja (Simpan & Push ke update)
+    # Jika dijalankan tanpa pesan, otomatis pakai timestamp.
     function Jarvis-Out {
         param([string]$message)
+        
+        # Jika tidak ada pesan, pakai timestamp otomatis
         if (-not $message) {
-            Write-Host "❌ Error: Butuh pesan commit." -ForegroundColor Red
-            Write-Host "Usage: jarvis-out 'pesan kamu'" -ForegroundColor Yellow
-            return
+            $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+            $message = "Auto-save: $timestamp"
+            Write-Host "⚠️ No message provided. Using default: '$message'" -ForegroundColor Yellow
         }
+
         git add .
         git commit -m "$message"
         git push origin update
