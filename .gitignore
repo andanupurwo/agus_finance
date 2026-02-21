@@ -33,11 +33,13 @@ dist-ssr
 .env.*.local
 .env.development
 .env.production
+functions/.env
 
 # Firebase sensitive files (jangan commit!)
 **/serviceAccountKey.json
 **/service-account*.json
 **/*-adminsdk-*.json
+service-account.json
 
 # Test files
 public/test-import.xlsx

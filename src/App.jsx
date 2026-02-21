@@ -15,7 +15,7 @@ import { Header } from './components/Header';
 import { Toast, ConfirmDialog } from './components/Toast';
 import { InstallPrompt } from './components/InstallPrompt';
 import { useTransactions } from './hooks/useTransactions';
-import { usePullToRefresh, PullToRefreshIndicator } from './hooks/usePullToRefresh.jsx';
+import { usePullToRefresh } from './hooks/usePullToRefresh.jsx';
 import { useTheme } from './context/ThemeContext';
 import { formatRupiah, parseRupiah } from './utils/formatter';
 import { cacheManager } from './utils/cacheManager';
@@ -564,7 +564,7 @@ export default function App() {
       <InstallPrompt />
 
       {/* Pull to Refresh Indicator */}
-      <PullToRefreshIndicator />
+
 
       {toast && (
         <Toast
